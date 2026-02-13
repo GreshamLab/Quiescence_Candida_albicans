@@ -1,0 +1,55 @@
+---
+title: "YPDGlucose"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Quantification of Candida albicans growth under different glucose concentrations
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(readxl)
+
+# Load and prepare the data
+data <- read_xlsx("YPDGlucose.xlsx", sheet = 1, col_names = FALSE)
+data <- data[1:3, 1:3]
+
+# Create a long format dataframe with all measurements as numerical values
+long_data <- data %>% pivot_longer(cols = everything(), 
+                        names_to = "glucose", 
+                        values_to = "measurement") %>%
+  mutate(glucose_numeric = as.numeric(c(0.2, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05, 0.05)))
+
+long_data$DF_correction <- long_data$measurement*10
+
+# Perform linear regression on all points
+lm_model <- lm(DF_correction ~ glucose_numeric, data = long_data)
+
+# Extract statistics
+r_squared <- summary(lm_model)$r.squared
+slope <- summary(lm_model)$coefficients[2]
+p_value <- summary(lm_model)$coefficients[2,4]
+
+# Print R-squared and p-value
+cat("R-squared:", r_squared, "\n")
+cat("P-value:", p_value, "\n")
+
+# Create the plot with all points
+ggplot(long_data, aes(x = glucose_numeric, y = DF_correction)) +
+  geom_point(size = 3, color = c("#E88F3B")) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  labs(title = "Rich Media",
+       x = "Glucose concentration (M)",
+       y = "OD600",
+       caption = paste("R² =", round(r_squared, 3), "| p-value =", signif(p_value, 3), "| slope =", round(slope, 3))) +
+  theme_grey()
+
+ggsave("rich_media_plot.png", width = 8, height = 6, dpi = 300) # Save the plot as a PNG file
+```

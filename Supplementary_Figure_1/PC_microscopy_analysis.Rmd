@@ -1,0 +1,293 @@
+---
+title: "PC_microscopy_analysis"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Figure 1F Re-plot
+
+We wanted to replot this figure from the original quantification, but with brand new analysis that now recognizes different clusters separately. This helps us have more granularity in our plot, but also provides added records both on account of the "Cell Counter" plugin being used and counted images with different colored markers being saved more systematically. Our analyses with the Berman Lab, now thanks to this strategy, will match more coherently and will hopefully add more robust statistics to my paper. 
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(readr)
+library(patchwork)
+
+# Read CSV (replace path)
+df <- read_csv("PC_Microscopy_analysis.csv", show_col_types = FALSE)
+
+# If the column is named "Quadruplet+" (or similar), rename to "Quadruplet"
+quad_col <- grep("^Quadruplet", names(df), value = TRUE)[1]
+if (!is.na(quad_col) && quad_col != "Quadruplet") {
+  names(df)[names(df) == quad_col] <- "Quadruplet"
+}
+
+# Ensure relevant columns are numeric and Media is a factor
+df <- df %>%
+  mutate(across(c(Singlet, Doublet, Triplet, Quadruplet, Time),
+                as.numeric),
+         Media = as.factor(Media))
+
+# Sum counts per Media x Time, compute singlet ratio and percentage
+df_sum <- df %>%
+  group_by(Media, Time) %>%
+  summarise(
+    sum_singlet = sum(Singlet, na.rm = TRUE),
+    sum_doublet = sum(Doublet, na.rm = TRUE),
+    sum_triplet = sum(Triplet, na.rm = TRUE),
+    sum_quad = sum(Quadruplet, na.rm = TRUE),
+    total_nonamb = sum_singlet + sum_doublet + sum_triplet + sum_quad,
+    singlet_ratio = sum_singlet / total_nonamb,
+    singlet_pct = 100 * singlet_ratio,
+    .groups = "drop"
+  ) %>%
+  filter(total_nonamb > 0)
+
+p_bud <- ggplot(df_sum, aes(x = Time, y = singlet_ratio, color = Media, group = Media)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("Rich" = "orange", "Minimal" = "blue")) +
+  labs(
+    x = NULL,  # remove x label on top panel to share with bottom
+    y = "Unbudded cells (%)",
+    color = "Media"
+  ) +
+  theme(
+    legend.position = "right",
+    axis.title.x = element_blank()
+  )
+
+# -------------------------
+# 2n DNA content data & plot
+# -------------------------
+df_summary <- read_csv("Ozan_CellCycle_MediaEffect3-analysis-reformat.CSV") %>%
+  mutate(`2n` = `2n` * 100) %>%
+  select(Time, Media, `2n`) %>%
+  rename(Proportion = `2n`) %>%
+  mutate(Time = as.numeric(Time)) %>%
+  group_by(Time, Media) %>%
+  summarise(
+    mean_2n = mean(Proportion),
+    se_2n = sd(Proportion) / sqrt(n()),
+    .groups = "drop"
+  )
+
+p_2n <- ggplot(df_summary, aes(x = Time, y = mean_2n, color = Media)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = mean_2n - se_2n, ymax = mean_2n + se_2n), width = 1) +
+  scale_color_manual(values = c("Rich" = "orange", "Minimal" = "blue")) +
+  labs(
+    x = "Time (hours)",
+    y = "2n Population (%)",
+    color = "Media"
+  ) +
+  theme(legend.position = "right")
+
+# -------------------------
+# Align x-axis limits so the panels share the same x scale
+# -------------------------
+x_limits <- range(c(df_summary$Time, df_summary$Time), na.rm = TRUE)
+p_bud <- p_bud + scale_x_continuous(limits = x_limits)
+p_2n  <- p_2n  + scale_x_continuous(limits = x_limits)
+
+# -------------------------
+# Stack vertically with shared legend and x alignment
+# -------------------------
+combined_plot <- (p_bud / p_2n) +
+  plot_layout(heights = c(1, 1), guides = "collect") &
+  theme(legend.position = "right")
+
+# Display
+combined_plot
+
+ggsave("Figure-1F.png", combined_plot, width = 5.5, height = 7.5, dpi = 300)
+
+# Bar plot of total number of cells in each condition
+df_total <- df %>%
+  group_by(Media, Time) %>%
+  summarise(
+    total_cells = sum(Singlet + Doublet + Triplet + Quadruplet + Ambiguous, na.rm = TRUE),
+    .groups = "drop"
+  )
+p_total <- ggplot(df_total, aes(x = Time, y = total_cells, fill = Media)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  scale_fill_manual(values = c("Rich" = "orange", "Minimal" = "blue")) +
+  labs(
+    x = "Time (hours)",
+    y = "Total cells counted",
+    fill = "Media"
+  ) +
+  theme(legend.position = "right")
+print(p_total)
+
+# Bar plot of proportion of ambiguous cells in each condition
+df_ambiguous <- df %>%
+  group_by(Media, Time) %>%
+  summarise(
+    total_ambiguous = sum(Ambiguous, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+## Supplementary Figure 1 Re-plot
+
+This plot will consist of the  different clusters (singlet, doublet, triplet, quadruplet+, ambiguous) plotted as stacked bars for each Media and Time point. The Y-axis will represent the percentage of each cluster type within the total cell count for that condition, and the X-axis will represent the Time points. Each Media condition will be represented as a separate facet in the plot.
+
+## Supplementary Figure 1 Re-plot
+
+This plot will consist of the different clusters (singlet, doublet, triplet, quadruplet+) plotted as stacked bars for each Media and Time point. Ambiguous cells are excluded. The Y-axis represents the percentage of each cluster type within the total non-ambiguous cell count for that condition, and bars add up to 100%. The X-axis represents the Time points. Each Media condition is represented as a separate facet in the plot.
+
+```{r}
+# Required packages
+library(tidyverse)  # dplyr, tidyr, ggplot2, readr
+
+# 2) Aggregate counts per Media x Time (exclude ambiguous)
+agg <- df %>%
+  group_by(Media, Time) %>%
+  summarise(
+    Singlet = sum(Singlet, na.rm = TRUE),
+    Doublet = sum(Doublet, na.rm = TRUE),
+    Triplet = sum(Triplet, na.rm = TRUE),
+    `Quadruplet+` = sum(Quadruplet, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    total_nonamb = Singlet + Doublet + Triplet + `Quadruplet+`
+  ) %>%
+  filter(total_nonamb > 0) %>%  # Remove conditions with no non-ambiguous cells
+  arrange(Media, as.numeric(Time))
+
+# Print aggregated counts
+print(agg)
+
+# 3) Pivot to long format and compute percentage per condition (0-100)
+agg_long <- agg %>%
+  pivot_longer(
+    cols = c(Singlet, Doublet, Triplet, `Quadruplet+`),
+    names_to = "cluster",
+    values_to = "count"
+  ) %>%
+  mutate(percent = round(count / total_nonamb * 100, 1))
+
+# Ensure Time is ordered numerically and cluster order is meaningful
+agg_long <- agg_long %>%
+  mutate(
+    Time = factor(Time, levels = sort(unique(as.numeric(as.character(Time))))),
+    cluster = factor(cluster, levels = c(
+      "Singlet", "Doublet", "Triplet", "Quadruplet+"
+    ))
+  )
+
+# Quick check that percentages sum to ~100 for each Media x Time
+agg_long %>%
+  group_by(Media, Time) %>%
+  summarise(total_pct = sum(percent), .groups = "drop") %>%
+  print(n = Inf)
+
+# 4) Plot: stacked bar (Time on X, percent on Y), faceted by Media
+p <- ggplot(agg_long, aes(x = Time, y = percent, fill = cluster)) +
+  geom_col(color = "black") +
+  facet_wrap(~ Media, nrow = 1) +
+  scale_y_continuous(
+    expand = c(0, 0),
+    limits = c(0, 100.5),
+    labels = function(x) paste0(x, "%")
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    x = "Time (h)",
+    y = "Percentage of cells (%)",
+    fill = "Cluster type",
+    title = "Cell cluster composition by Media and Time"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(hjust = 0.5)
+  )
+
+print(p)
+
+# Optional: save plot
+ggsave(
+  "Supplementary_Figure1_percentage-plot.png",
+  p,
+  width = 9,
+  height = 4,
+  dpi = 300
+)
+```
+
+## Figure 1F First Submission Final Plot
+
+We would like to create a new plot for Figure 1F because we observed weird trends of unbudded cells over time. We cannot explain the behavior exhibited by the unbudded cells, so we decided to re-plot the figure with only the 6 hours and 72 hours time points, and make a bar plot instead of a line plot. This way, we can focus on the differences between the two media at these two time points, and avoid the confusing trends in the middle time points. We will also add error bars to show the variability in our data.
+In the end, we would like to see a bar plot with two groups of two bars - one group named 'Rich' and another named 'Minimal' with 6 and 72 hour bars in these groups. We ultimately want to have side by side comparison of the two time points and show how the trends over time shift similarly in the two media conditions hypothetically.
+
+```{r}
+# Calculate singlet percentage per replicate for 6 and 72 hour timepoints
+df_stats <- df %>%
+  filter(Time %in% c(6, 72)) %>%
+  mutate(
+    total_nonamb = Singlet + Doublet + Triplet + Quadruplet,
+    singlet_pct = ifelse(total_nonamb > 0,
+                         Singlet / total_nonamb * 100,
+                         NA)
+  ) %>%
+  group_by(Media, Time) %>%
+  summarise(
+    mean_pct = mean(singlet_pct, na.rm = TRUE),
+    se_pct = sd(singlet_pct, na.rm = TRUE) /
+      sqrt(sum(!is.na(singlet_pct))),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Time = as.factor(Time),
+    Media = factor(Media, levels = c("Rich", "Minimal"))
+  )
+
+# Create grouped bar plot: Media groups with Time-based coloring
+p_figure1f <- ggplot(df_stats,
+                     aes(x = Media, y = mean_pct, fill = Time)) +
+  geom_col(position = position_dodge(width = 0.8),
+           color = "black", width = 0.65) +
+  geom_errorbar(
+    aes(ymin = mean_pct - se_pct, ymax = mean_pct + se_pct),
+    position = position_dodge(width = 0.8),
+    width = 0.25, size = 0.6
+  ) +
+  scale_fill_manual(
+    values = c("6" = "#f29d9a", "72" = "#5fc9d8"),
+    labels = c("6" = "6 hours", "72" = "72 hours"),
+    name = "Timepoint"
+  ) +
+  scale_y_continuous(
+    expand = c(0, 0),
+    limits = c(0, max(df_stats$mean_pct + df_stats$se_pct) * 1.15),
+    labels = function(x) paste0(x, "%")
+  ) +
+  labs(
+    x = "Media",
+    y = "Unbudded cells (%)",
+    title = "Unbudded cells by media and timepoint"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+print(p_figure1f)
+
+ggsave("Figure-1F-Final.png", p_figure1f, width = 6,
+       height = 4.5, dpi = 300)
+```
+**Interpretation:** The plot shows that minimal media shows a low amount of unbudded cells upon 6 hours and a significantly higher number of unbudded cells at 72 hours, while rich media shows a higher amount of unbudded cells at 6 hours and a similar amount at 72 hours. This suggests that minimal media conditions have a significant impact on the proportion of unbudded cells over time, with minimal media leading to an increase in unbudded cells and rich media leading to more mixed results. The budding index therefore is not reflective of the growth profile of growth cessation we observe in OD quantification.

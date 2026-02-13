@@ -1,0 +1,256 @@
+---
+title: "Fungicidal Drug Screening Analysis"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output: html_notebook
+---
+
+## Read the data
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(readr)
+library(tidyr)
+
+# Define the directory containing the data files
+data_dir <- "data/"
+
+# Read in the data
+read_data <- function(file) {
+  read.table(file = paste0(data_dir, file), header = TRUE, sep = ",", dec = ".", fill = TRUE)
+}
+AmpB_Exp <- read_data("Isolates_AmpB_Exp.csv")
+AmpB_Qui <- read_data("Isolates_AmpB_Qui.csv")
+Casp_Exp <- read_data("Isolates_Caspofungin_Exp.csv")
+Casp_Qui <- read_data("Isolates_Caspofungin_Qui.csv")
+Mica_Exp <- read_data("Isolates_Micafungin_Exp.csv")
+Mica_Qui <- read_data("Isolates_Micafungin_Qui.csv")
+
+# Combine the data into a single dataframe
+df <- rbind(AmpB_Exp, AmpB_Qui, Casp_Exp, Casp_Qui, Mica_Exp, Mica_Qui)
+
+```
+
+## Plot average drug response for each sample v1
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Display the first few rows of the data
+head(df)
+df$Dose <- as.factor(df$Dose)
+
+# Calculate the average Live_percent and Dead_percent values for each Sample-Growth-Treatment-Dose combination
+df_summary <- df %>%
+  group_by(Sample, Growth, Treatment, Dose) %>%
+  summarise(Total = Live_percent + Dead_percent,
+            Live_percent = Live_percent / Total,
+            Dead_percent = Dead_percent / Total,
+            .groups = "drop")
+
+# Output the df_summary object as a text file (optional)
+write.table(df_summary, "df_summary.txt", sep = "\t", row.names = FALSE)
+
+# Prepare the data for plotting: keep only Live_percent
+data_long <- df_summary %>%
+  pivot_longer(cols = c(Live_percent, Dead_percent),
+               names_to = "Metric",
+               values_to = "Value") %>%
+  filter(Metric == "Live_percent") %>%
+  # create a combined group that includes Dose
+  mutate(Treatment_Group = paste(Growth, Treatment, "Dose", Dose, sep = " "))
+
+# Set the order for the groups to match the requested layout:
+# For each drug: Exponential Dose 0, Exponential Dose 1, Quiescent Dose 0, Quiescent Dose 1
+data_long$Treatment_Group <- factor(data_long$Treatment_Group,
+                                    levels = c(
+                                      "Exponential Caspofungin Dose 0", "Exponential Caspofungin Dose 1",
+                                      "Exponential Micafungin Dose 1", "Exponential AmphotericinB Dose 1",
+                                      "Quiescent Caspofungin Dose 0",  "Quiescent Caspofungin Dose 1",
+                                      "Quiescent Micafungin Dose 1", "Quiescent AmphotericinB Dose 1"))
+
+# Plot
+ggplot(data_long, aes(x = Treatment_Group, y = Value, fill = Growth)) +
+  geom_boxplot(outlier.shape = NA, width = 0.8) +
+  # jitter non SC5314
+  geom_jitter(data = subset(data_long, !Sample %in% c("SC5314")),
+              aes(x = Treatment_Group, y = Value),
+              position = position_jitter(width = 0.15, height = 0),
+              size = 1, color = "black") +
+  # jitter SC5314 in orange
+  geom_jitter(data = subset(data_long, Sample %in% c("SC5314")),
+              aes(x = Treatment_Group, y = Value),
+              position = position_jitter(width = 0.15, height = 0),
+              size = 1.8, color = "orange") +
+  scale_y_continuous(name = "Viability (%)", limits = c(0, 1)) +
+  theme_gray() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid.minor = element_line(color = "gray80"),
+        axis.title.x = element_blank()) +
+  labs(fill = NULL)
+
+# Save
+ggsave("drug_response_plot.png", width = 12, height = 6)
+
+```
+
+## Plot average drug response for each sample v2 (with pooled Dose 0)
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(purrr)
+
+# Ensure Dose is factor and normalize Live_percent
+df$Dose <- as.factor(df$Dose)
+
+df_summary <- df %>%
+  group_by(Sample, Growth, Treatment, Dose) %>%
+  summarise(
+    Total = Live_percent + Dead_percent,
+    Live_percent = Live_percent / Total,
+    .groups = "drop"
+  )
+
+# Prepare the 12-group factor order for plotting
+level_order <- c(
+  "Exponential Caspofungin Dose 0", "Exponential Caspofungin Dose 1",
+  "Quiescent Caspofungin Dose 0",  "Quiescent Caspofungin Dose 1",
+  "Exponential Micafungin Dose 0", "Exponential Micafungin Dose 1",
+  "Quiescent Micafungin Dose 0",  "Quiescent Micafungin Dose 1",
+  "Exponential AmphotericinB Dose 0","Exponential AmphotericinB Dose 1",
+  "Quiescent AmphotericinB Dose 0", "Quiescent AmphotericinB Dose 1"
+)
+
+level_df <- tibble(Treatment_Group = level_order, x = seq_along(level_order))
+
+# create a long table of values we will test (one row per sample-group)
+vals <- df_summary %>%
+  mutate(Treatment_Group = paste(Growth, Treatment, "Dose", Dose, sep = " ")) %>%
+  filter(Treatment_Group %in% level_order) %>%
+  select(Sample, Growth, Treatment, Dose, Treatment_Group, Live_percent)
+
+# helper to format p-values and stars (same as you had)
+fmt <- function(p) {
+  if (is.na(p)) {
+    list(p_label = "n/a", stars = "n.s.")
+  } else if (p < 0.001) {
+    list(p_label = "p < 0.001", stars = "***")
+  } else if (p < 0.01) {
+    list(p_label = paste0("p = ", signif(p, 2)), stars = "**")
+  } else if (p < 0.05) {
+    list(p_label = paste0("p = ", signif(p, 2)), stars = "*")
+  } else {
+    list(p_label = paste0("p = ", signif(p, 2)), stars = "n.s.")
+  }
+}
+
+# ------------------------
+# 1) Paired Dose comparisons within each Growth x Treatment
+#    (Dose 0 vs Dose 1, paired by Sample)
+# ------------------------
+tests_dose_within_growth_paired <- vals %>%
+  group_by(Growth, Treatment) %>%
+  summarise(
+    df_pair = list(
+      pivot_wider(
+        cur_data_all(),
+        id_cols = Sample,
+        names_from = Dose,
+        values_from = Live_percent,
+        names_prefix = "Dose_"
+      )
+    ),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    # compute paired t-test p-value and number of matched pairs
+    p_and_n = map(df_pair, ~{
+      d <- .x
+      if (!all(c("Dose_0", "Dose_1") %in% names(d))) {
+        return(list(p = NA_real_, n = 0L))
+      }
+      d2 <- d[!is.na(d$Dose_0) & !is.na(d$Dose_1), , drop = FALSE]
+      n <- nrow(d2)
+      if (n >= 2) {
+        p <- tryCatch(
+          t.test(d2$Dose_0, d2$Dose_1, paired = TRUE)$p.value,
+          error = function(e) NA_real_
+        )
+      } else {
+        p <- NA_real_
+      }
+      list(p = p, n = n)
+    }),
+    p_value = map_dbl(p_and_n, "p"),
+    n_pairs = map_int(p_and_n, "n"),
+    tmp = map(p_value, fmt),
+    p_label = map_chr(tmp, "p_label"),
+    stars = map_chr(tmp, "stars"),
+    left_group = paste(Growth, Treatment, "Dose 0"),
+    right_group = paste(Growth, Treatment, "Dose 1")
+  ) %>%
+  left_join(level_df, by = c("left_group" = "Treatment_Group")) %>%
+  rename(x_left = x) %>%
+  left_join(level_df, by = c("right_group" = "Treatment_Group")) %>%
+  rename(x_right = x) %>%
+  select(Growth, Treatment, left_group, right_group, x_left, x_right,
+         p_value, n_pairs, p_label, stars)
+
+# ------------------------
+# 2) Paired Growth comparisons within each Treatment x Dose
+#    (Exponential vs Quiescent, paired by Sample)
+# ------------------------
+tests_growth_within_dose_paired <- vals %>%
+  group_by(Treatment, Dose) %>%
+  summarise(
+    df_pair = list(
+      pivot_wider(
+        cur_data_all(),
+        id_cols = Sample,
+        names_from = Growth,
+        values_from = Live_percent
+      )
+    ),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    p_and_n = map(df_pair, ~{
+      d <- .x
+      if (!all(c("Exponential", "Quiescent") %in% names(d))) {
+        return(list(p = NA_real_, n = 0L))
+      }
+      d2 <- d[!is.na(d$Exponential) & !is.na(d$Quiescent), , drop = FALSE]
+      n <- nrow(d2)
+      if (n >= 2) {
+        p <- tryCatch(
+          t.test(d2$Exponential, d2$Quiescent, paired = TRUE)$p.value,
+          error = function(e) NA_real_
+        )
+      } else {
+        p <- NA_real_
+      }
+      list(p = p, n = n)
+    }),
+    p_value = map_dbl(p_and_n, "p"),
+    n_pairs = map_int(p_and_n, "n"),
+    tmp = map(p_value, fmt),
+    p_label = map_chr(tmp, "p_label"),
+    stars = map_chr(tmp, "stars"),
+    left_group = paste("Exponential", Treatment, "Dose", Dose),
+    right_group = paste("Quiescent", Treatment, "Dose", Dose)
+  ) %>%
+  left_join(level_df, by = c("left_group" = "Treatment_Group")) %>%
+  rename(x_left = x) %>%
+  left_join(level_df, by = c("right_group" = "Treatment_Group")) %>%
+  rename(x_right = x) %>%
+  select(Treatment, Dose, left_group, right_group, x_left, x_right,
+         p_value, n_pairs, p_label, stars)
+
+# Inspect results
+tests_dose_within_growth_paired
+tests_growth_within_dose_paired
+```

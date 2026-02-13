@@ -1,0 +1,634 @@
+---
+output: html_notebook
+---
+# DESeq2 to Visualize Gene Expression Patterns in Candida albicans Quiescence Establishment
+
+This notebook illustrates one way that you can use RNA-seq data from refine.bio to perform Principal Component Analysis (PCA) and plot the scores using `ggplot2`.
+
+## Add the necessary packages to the working environment
+
+Most of the functions used in this RMD are available in base R, but some plotting and statistics functions will be derived from the R packages indicated below:
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(grid)
+library(gridExtra)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(grid)
+library(gridExtra)
+
+# Create the data folder if it doesn't exist
+if (!dir.exists("data")) {
+  dir.create("data")
+  cat("Created 'data' directory.\n")
+} else {
+  cat("'data' directory already exists.\n")
+}
+
+# Define the file path to the data directory
+data_dir <- file.path("data", "RNASeq_Candida")
+
+# Declare the file path to the gene expression matrix file
+data_file <- file.path("RNASeq_Candida_data.csv")
+
+# Declare the file path to the metadata file
+metadata_file <- file.path("RNASeq_Candida_meta.csv")
+
+```
+
+
+If the chunk above printed out `FALSE` to either of those tests, you won't be able to run this analysis _as is_ until those files are in
+the appropriate place.
+
+## PCA Visualization - RNA-seq
+
+```{r, message=FALSE}
+if (!("DESeq2" %in% installed.packages())) {
+  # Install DESeq2
+  BiocManager::install("DESeq2", update = FALSE)
+}
+```
+
+Attach the `DESeq2` and `ggplot2` libraries:
+
+```{r, message=FALSE}
+# Attach the `DESeq2` library
+library(DESeq2)
+
+# Attach the `ggplot2` library for plotting
+library(ggplot2)
+
+# We will need this so we can use the pipe: %>%
+library(magrittr)
+
+# Set the seed so our results are reproducible:
+set.seed(12345)
+```
+
+## Import and set up data
+
+```{r, echo=FALSE}
+# Read in metadata CSV file
+metadata <- readr::read_csv(metadata_file)
+cat("Metadata:", dim(metadata)[1], "rows and", dim(metadata)[2], "columns\n")
+cat("First few rows of metadata:\n")
+print(head(metadata))
+
+# Read in data CSV file
+expression_df <- readr::read_csv(data_file) %>%
+  # Tuck away the gene ID column as row names, leaving only numeric values
+  tibble::column_to_rownames("gene")
+cat("Expression data:", dim(expression_df)[1], "genes and", dim(expression_df)[2], "samples\n")
+cat("First few rows of expression data:\n")
+print(head(expression_df))
+
+# Check for missing values
+if (any(is.na(metadata))) {
+  cat("Warning: Missing values detected in metadata!\n")
+}
+if (any(is.na(expression_df))) {
+  cat("Warning: Missing values detected in expression data!\n")
+}
+
+head(metadata)
+head(expression_df)
+```
+
+Let's ensure that the metadata and data are in the same sample order.
+
+```{r}
+# Make the sure the columns (samples) are in the same order as the metadata
+expression_df <- expression_df %>% select(metadata$sample_name)
+
+# Check if this is in the same order
+all.equal(colnames(expression_df), metadata$sample_name)
+```
+
+In this analysis, we don't want to analyze the raw counts, but instead correlate relative fold changes to survey differences in 
+expression abundance as we want to answer 'what are the list of upregulated and downregulated genes in the establishment of quiescence 
+in Candida albicans'.
+
+## Prepare metadata for `DESEq2`
+
+We need to make sure all of the metadata column variables that we would like to use to annotate our plot, are converted into factors.
+
+```{r}
+# convert the columns we will be using for annotation into factors
+metadata <- metadata %>% mutate(time = factor(time, levels = c("2", "5", "8", "11", "24", "48", "72")),
+                                media = factor(media, levels = c("YPD", "carbon", "nitrogen")),
+                                growth = factor(growth, levels = c("exponential", "quiescent")))
+```
+
+## Define a minimum counts cutoff
+
+We want to filter out the genes that have not been expressed or that have low expression counts since these genes are likely to add 
+noise rather than useful signal to our analysis.
+We are going to do some pre-filtering to keep only genes with 10 or more reads total.
+This threshold might vary depending on the number of samples and expression patterns across your data set.
+Note that rows represent gene data and the columns represent sample data in our dataset.
+
+```{r}
+# # Define a minimum counts cutoff and filter the data to include
+# # only rows (genes) that have total counts above the cutoff
+# filtered_expression_df <- expression_df %>% dplyr::filter(rowSums(.) >= 10)
+```
+
+We also need our counts to be rounded before we can use them with the `DESeqDataSetFromMatrix()` function.
+
+```{r}
+# # The `DESeqDataSetFromMatrix()` function needs the values to be integers
+# filtered_expression_df <- round(filtered_expression_df)
+```
+
+## Create a DESeqDataset
+
+```{r}
+# Count NA values in the expression_df dataframe
+na_count <- sum(is.na(expression_df))
+print(paste("Total number of NA values in expression_df:", na_count))
+
+# There was a single gene with an NA value for read counts which needs to be removed
+expression_df <- na.omit(expression_df)
+
+# Create a `DESeqDataSet` object
+dds <- DESeqDataSetFromMatrix(
+  countData = expression_df, # the counts values for all samples in our dataset
+  colData = metadata, # annotation data for the samples in the counts data frame
+  design = ~time+media
+)
+
+```
+
+## Perform DESeq2 normalization and transformation
+
+We are going to use the `vst()` function from the `DESeq2` package to and transform the data.
+In addition to `vst()` we also test out `rlog()`, `vst(blind)`, `rlog(blind)`, and `normTransform()` to identify effects of these
+transformations on variance and to see if transformation adds variance where it doesn't exist as well as compare different linear
+models so that a fitting model can be selected for the particular questions that we are asking.
+
+```{r}
+# Testing which type of normalization works best for the minimization of the variance in our data
+# Shifted log transformation
+# this gives log2(n + 1)
+library(vsn)
+ntd <- normTransform(dds)
+meanSdPlot(assay(ntd))
+
+# Variance stabilizing transformation
+vsd <- vst(dds, blind=FALSE)
+meanSdPlot(assay(vsd))
+
+# # Regularized log transformation
+# rld <- rlog(dds, blind=FALSE)
+# meanSdPlot(assay(rld))
+# 
+# # Variance stabilizing transformation, blind to design (for QA)
+# vsbd <- vst(dds, blind=TRUE)
+# meanSdPlot(assay(vsbd))
+# 
+# # Regularized log transformation, blind to design (for QA)
+# rlbd <- rlog(dds, blind=TRUE)
+# meanSdPlot(assay(rlbd))
+
+```
+
+For our data, the regularized log transformation works well since variation is lower when prior sample bias is removed, and variance
+exists above 2 SD when study design is considered. I chose this method because I only wish to have a small and select group of genes
+that are significantly differentially expressed, and the variance to be even outside of these significant DE genes.
+
+However, different transformations performed variably with different models. When model parameters are not included (blind), regularized
+log transformation seems to show variance in low mean readcount genes well while stratifying most data signficantly, and when design is
+included (not blind), there are individual genes that pop up as significant DE genes, which is what we want to investigate. 
+
+## Create PCA plots to visualize distribution of counts
+
+DESeq2 has built-in functions to calculate and plot PCA values, which we will use here.
+The `plotPCA()` function allows us to specify our group of interest with the `intgroup` argument, which will be used to color the points
+in our plot.
+
+```{r}
+p1 <- plotPCA(
+  vsd,
+  intgroup = "time"
+)
+
+p2 <- plotPCA(
+  vsd,
+  intgroup = "media"
+)
+
+p3 <- plotPCA(
+  vsd,
+  intgroup = "growth"
+)
+
+
+figure <- ggarrange(p1,p2,p3,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+png("plot_pca_rnaseq.png", height = 800, width = 1200, res = 120)
+plot(figure)
+dev.off()
+```
+
+We do not see a clear separation of the samples based on *time*, *media* or *growth*, and this makes sense based on the observations we
+made with our principal component analysis plots where the effect of individual conditions were tested.
+
+## Running the DESeq Analysis with additive 
+
+```{r}
+# Run the DESeq analysis and obtain results table
+dds <- DESeq(dds)
+res <- results(dds)
+
+# Statistical tests
+dds <- estimateSizeFactors(dds)
+dds <- estimateDispersions(dds)
+dds <- nbinomWaldTest(dds, maxit = 500)
+
+# Heatmap to visualize data spread and variation
+library("pheatmap")
+df <- as.data.frame(colData(dds)[,c("time","media")])
+pheatmap(assay(ntd), cluster_rows=TRUE, show_rownames=FALSE,
+         cluster_cols=FALSE, annotation_col=df)
+```
+
+## Heatmap Similar to Klosinska et al., 2011, Genes Dev., Figure 2
+
+```{r}
+library("pheatmap")
+select <- order(rowMeans(counts(dds,normalized=TRUE)),
+                decreasing=TRUE)
+df <- as.data.frame(colData(dds)[,c("time","media")]) %>% arrange(media,time)
+df$time <- as.numeric(as.character(df$time))
+df_ordered <- df %>% rownames_to_column(var="Locus")
+ordered_colnames <- as.vector(df_ordered$Locus)
+heatmap <- pheatmap(assay(ntd)[select,ordered_colnames], cluster_rows=TRUE, show_rownames=FALSE, show_colnames = TRUE,
+         cluster_cols=FALSE, annotation_col=df)
+```
+
+## Plotting distribution of data with additive linear model
+
+```{r}
+# MA Plot
+MAplot <- plotMA(res, ylim=c(-10,10), alpha = 0.0001)
+
+#Tabulate results
+resultsNames(dds)
+res_table <- results(dds, name = "time_72_vs_2") 
+res_table <- res_table %>% data.frame() %>% rownames_to_column(var="Locus") %>% as_tibble()
+
+#Sort by p-value
+res_table <- res_table[order(res_table$padj),]
+
+# Apply significance threshold, fold-change threshold, view, and export table
+res_table_sig <- res_table %>%
+  filter(padj < 0.05 & abs(log2FoldChange) > 1)
+write.csv(res_table_sig, file="time_72_vs_2_sigresults.csv")
+res_table_sig
+
+# Apply more stringent significance (Padj<0.01) and fold-change (>6-fold change) thresholds, view, and export table
+res_table_hi_sig <- res_table %>%
+  filter(padj < 0.01 & abs(log2FoldChange) > 2.5)
+write.csv(res_table_hi_sig, file="time_72_vs_2_highlysigresults.csv")
+res_table_hi_sig
+
+# Save res_table as is
+write.csv(res_table, file="time_72_vs_2_results.csv")
+
+# Volcano plot
+time_72_vs_2_table <- res_table %>% mutate(threshold_sig = padj < 0.0001) # 1741 DE genes with padj > 0.0001
+time_72_vs_2_volplot<- ggplot(time_72_vs_2_table) + 
+  geom_point(aes(x = log2FoldChange, y = -log10(padj), color = threshold_sig)) +
+  ggtitle("Effect of 72 hour incubation on C. albicans gene expression") + xlab("log2 fold change") + ylab("-log10 adjusted p-value") +
+  xlim(c(-3,3)) + ylim(c(0,10)) + 
+  theme(legend.position = "none", plot.title = element_text(size = rel(1.5), hjust = 0.5), axis.title = element_text(size = rel(1.25)))
+ggsave(filename = "time_72_vs_2_volplot.jpg", plot = time_72_vs_2_volplot, width = 10, height = 5)
+```
+
+## Version 1.1: Trying to visualize heatmaps separately & identifying the most significant DE genes
+
+```{r}
+# Find the average of the 3 replicates @ each timepoint to reduce the matrix
+## Create a list of conditions and their corresponding column indices
+conditions <- list(
+  YPD_2hr = 46:48, YPD_5hr = 55:57, YPD_8hr = 61:63, YPD_11hr = 43:45,
+  YPD_24hr = 49:51, YPD_48hr = 52:54,
+  Car_2hr = 4:6, Car_5hr = 13:15, Car_8hr = 19:21, Car_11hr = 1:3,
+  Car_24hr = 7:9, Car_48hr = 10:12
+)
+
+# Calculate averages for each condition
+averages <- data.frame(sapply(conditions, function(cols) rowMeans(expression_df[, cols], na.rm = FALSE)))
+
+# Divide each sample expression value by the first time point within a media condition per group
+fold_change <- data.frame(
+  gene = rownames(averages),
+  YPD_2hr_FC = averages$YPD_2hr / averages$YPD_2hr,
+  YPD_5hr_FC = averages$YPD_5hr / averages$YPD_2hr,
+  YPD_8hr_FC = averages$YPD_8hr / averages$YPD_2hr,
+  YPD_11hr_FC = averages$YPD_11hr / averages$YPD_2hr,
+  YPD_24hr_FC = averages$YPD_24hr / averages$YPD_2hr,
+  YPD_48hr_FC = averages$YPD_48hr / averages$YPD_2hr,
+  Car_2hr_FC = averages$Car_2hr / averages$Car_2hr,
+  Car_5hr_FC = averages$Car_5hr / averages$Car_2hr,
+  Car_8hr_FC = averages$Car_8hr / averages$Car_2hr,
+  Car_11hr_FC = averages$Car_11hr / averages$Car_2hr,
+  Car_24hr_FC = averages$Car_24hr / averages$Car_2hr,
+  Car_48hr_FC = averages$Car_48hr / averages$Car_2hr
+)
+
+# Replace NaN and Inf values with 1 or 0 as needed
+fold_change <- replace(fold_change, fold_change == "NaN", 1)
+fold_change <- replace(fold_change, fold_change == "Inf", 1)
+
+# Remove outlier genes (greater than 1000+ fold increase)
+outliers <- c("C5_04210C", "C5_04220W", "C5_04190W", "CR_02490W")
+fold_change <- fold_change[!(fold_change$gene %in% outliers), ]
+
+# Remove the 'gene' column and set rownames
+rownames(fold_change) <- fold_change$gene
+fold_change <- fold_change[, !(names(fold_change) %in% c("gene"))]
+
+# Transform the data for log2FC values
+log2FC <- log2(fold_change)
+log2FC <- replace(log2FC, log2FC == "Inf", 0)
+log2FC <- replace(log2FC, log2FC == "-Inf", 0)
+
+# Reorder columns: YPD samples first (ordered by time), then C-Lim samples (ordered by time)
+log2FC <- log2FC[, c("YPD_2hr_FC", "YPD_5hr_FC", "YPD_8hr_FC", "YPD_11hr_FC", "YPD_24hr_FC", "YPD_48hr_FC",
+                     "Car_2hr_FC", "Car_5hr_FC", "Car_8hr_FC", "Car_11hr_FC", "Car_24hr_FC", "Car_48hr_FC")]
+
+library(pheatmap)
+library(RColorBrewer)
+
+# --- choose number of clusters you want to show
+k <- 8
+
+# --- build the same row clustering pheatmap would use
+row_dist  <- dist(log2FC, method = "euclidean")
+row_clust <- hclust(row_dist, method = "complete")
+
+# --- cut clusters and create a row annotation
+clusters <- cutree(row_clust, k = k)
+ann_row  <- data.frame(Cluster = factor(clusters))
+rownames(ann_row) <- rownames(log2FC)
+
+# --- distinct colors for the k clusters (works for any k)
+base_cols <- brewer.pal(12, "Set3")
+ann_colors <- list(
+  Cluster = setNames(colorRampPalette(base_cols)(k), levels(ann_row$Cluster))
+)
+
+# --- (optional) draw horizontal gaps between clusters
+ord   <- row_clust$order
+gaps  <- which(diff(clusters[ord]) != 0)   # positions in the clustered order
+
+
+## ---- your existing color scale (consider using a longer break sequence for smoother gradient)
+my_breaks <- seq(-8, 8, length.out = 257)
+my_colors <- colorRampPalette(c("blue", "white", "red"))(length(my_breaks) - 1)  # color-blind friendly
+
+## ---- plot with the cluster side bar
+final_heatmap <- pheatmap(
+  log2FC,
+  cluster_rows = row_clust,         # use our dendrogram
+  cluster_cols = FALSE,
+  show_rownames = FALSE,
+  show_colnames = TRUE,
+  clustering_method = "complete",
+  color  = my_colors,
+  breaks = my_breaks,
+  annotation_row = ann_row,         # <-- cluster strip on the left
+  annotation_colors = ann_colors
+)
+
+# Save the heatmap as a PNG file
+ggsave(filename = "heatmap_with_clusters.png", plot = final_heatmap$gtable, width = 12, height = 8, dpi = 300)
+```
+
+## Hierarchical Clustering for Over-Representation Analysis
+
+```{r}
+library(gplots)
+library(viridis)
+library(devtools)
+library(dendextend)
+
+# install.packages(gplots)
+# install.packages(viridis)
+# install.packages(devtools)
+# devtools::install_github('talgalili/dendextend') # dendextend from github
+
+# Hierarchical clustering for dendrogram visualization (https://www.geeksforgeeks.org/ml-types-of-linkages-in-clustering/)
+hclust <- hclust(dist(log2FC), method = "complete")
+summary(hclust)
+
+# Plot the dendrograms for each heatmap
+plot(hclust, hang = -1, main = "Dendrogram of gene expression - complete linkage")
+abline(h = 19, col = "red")
+
+# Cut the dendrogram into 8 clusters when cut at h = 17
+clusters <- cutree(hclust, h = 19)
+max(clusters)
+
+# define dendrogram object to play with:
+dend <- as.dendrogram(hclust) %>%  set("labels_to_character") %>% color_branches(h = 19)
+dend_list <- get_subdendrograms(dend,8) # the number in 2nd argument should equal number of clusters when h = 19
+
+# plot a heatmap of only one of the sub dendrograms
+par(mfrow = c(3,2))
+sub_dend <- dend_list[[1]] # get the sub dendrogram
+length(order.dendrogram(sub_dend))
+# make sure of the size of the dend
+nleaves(sub_dend)
+
+# get the subset of the data
+subset <- as.matrix(log2FC[order.dendrogram(sub_dend),1:12])
+# update the dendrogram's internal order so to not cause an error in heatmap.2
+order.dendrogram(sub_dend) <- rank(order.dendrogram(sub_dend))
+
+# plot the heatmap
+heatmap.2(subset, Colv = FALSE, trace = "none", col = viridis::viridis(100), 
+          margins = c(10,10), offsetCol = 0.1, 
+          key.title = NA, key.ylab = NA, xlab = NA, ylab = NA)
+
+# Plotting the result
+par(mfrow = c(2,3))
+plot(dend, main = "Original dendrogram")
+sapply(dend_list, plot)
+
+# Function for plotting out the heatmap of each cluster individually to select cluster for over-representation analysis
+cluster_heatmap <- function(dend_number){
+  # plot a heatmap of only one of the sub dendrograms
+sub_dend <- dend_list[[dend_number]] # get the sub dendrogram
+# make sure of the size of the dend
+nleaves(sub_dend)
+length(order.dendrogram(sub_dend))
+# get the subset of the data
+subset <- as.matrix(log2FC[order.dendrogram(sub_dend),1:12])
+# update the dendrogram's internal order so to not cause an error in heatmap.2
+order.dendrogram(sub_dend) <- rank(order.dendrogram(sub_dend))
+heatmap.2(subset, Colv = FALSE, trace = "none", col = viridis::viridis(100), margins = c(10,10), offsetCol = 0.1, key.title = NA,
+          key.ylab = NA, xlab = NA, ylab = NA)
+}
+par(mfrow = c(2,3))
+sapply(1:8, cluster_heatmap)
+
+# Print the gene names in each cluster as a text file
+for (i in 1:length(dend_list)) {
+  gene_names <- rownames(log2FC)[order.dendrogram(dend_list[[i]])]
+  writeLines(gene_names, paste0("cluster_", i, "_genes.txt"))
+}
+```
+
+## Heatmap Modifications
+
+```{r}
+# Create a simplified timepoint label set
+timepoints <- c("2hr", "5hr", "8hr", "11hr", "24hr", "48hr",
+                "2hr", "5hr", "8hr", "11hr", "24hr", "48hr")
+
+# Reorder rows to ensure YPD genes are first and C-Lim genes are second
+ypd_genes <- grep("YPD", colnames(log2FC), value = TRUE)
+clim_genes <- grep("Car", colnames(log2FC), value = TRUE)
+log2FC_ordered <- log2FC[, c(ypd_genes, clim_genes)]  # Reorder by media condition
+
+# Identify a row position where to separate YPD and C-Lim
+halfway_index <- nrow(log2FC) / 2  # Approximate halfway point
+
+# Save heatmap as PNG
+png("heatmap_with_clusters_split_Yaxis.png", width = 1200, height = 1600, res = 150)
+
+# Generate heatmap with modifications
+final_heatmap <- pheatmap(
+  log2FC_ordered, 
+  cluster_rows = TRUE, 
+  show_rownames = FALSE, 
+  show_colnames = TRUE,
+  cluster_cols = FALSE, 
+  clustering_method = "complete",
+  annotation_row = cluster_annotation,  # Add cluster annotation
+  annotation_colors = ann_colors,  # Assign colors to clusters
+  labels_col = timepoints,  # Update column labels to only show time points
+  gaps_row = halfway_index  # Insert a gap to separate YPD and C-Lim
+)
+
+# Close PNG device
+dev.off()
+
+```
+# Effect of Media at Different Time Points
+
+To survey the effect of media as a factor on gene expression, we can use the `DESeq2` package to run a differential expression analysis. We will split the data into separate objects for each time point, and then ask how rich media (YPD) compares to minimal media (C-Lim) at each time point.
+
+```{r}
+# Create a data frame for each time point
+time_points <- unique(metadata$time)
+
+# Remove the 72 hour time point (not necessary for our analysis)
+time_points <- time_points[time_points != "72"]
+
+# Create a list to hold the DESeqDataSet objects for each time point
+expression_list <- lapply(time_points, function(tp) {
+  # Filter the metadata for the current time point
+  tp_metadata <- metadata %>% filter(time == tp)
+  
+  # Filter the expression data for the samples in the current time point
+  tp_expression <- expression_df[, colnames(expression_df) %in% tp_metadata$sample_name]
+  
+  # Create a DESeqDataSet object for the current time point
+  DESeqDataSetFromMatrix(
+    countData = tp_expression,
+    colData = tp_metadata,
+    design = ~ media
+  )
+})
+
+# Run DESeq2 for each time point and store results
+results_list <- lapply(expression_list, function(dds) {
+  dds <- DESeq(dds)
+  res <- results(dds, contrast = c("media", "YPD", "carbon"))
+  res <- res %>% data.frame() %>% rownames_to_column(var="Locus") %>% as_tibble()
+  res <- res[order(res$padj),]  # Sort by adjusted p-value
+  return(res)
+})
+
+# Combine results into a single data frame
+combined_results <- do.call(rbind, results_list)
+
+# Add time point information to the combined results
+combined_results$time <- rep(time_points, each = nrow(results_list[[1]]))
+
+# Filter for significant results
+significant_results <- combined_results %>% filter(padj < 0.05)
+
+# Save the significant results to a CSV file
+write.csv(significant_results, file = "media_effect_significant_results.csv", row.names = FALSE)
+```
+## Visualize the data 
+
+The goal of the visualization is to create a heatmap where at each time point, we see whether the transcripts of genes are comparatively higher or lower in abundance in minimal media (C-Lim) compared to rich media (YPD). We first want to perform this hierarchical clustering here to be able to reduce the dimensionality of the data and visualize the results in a heatmap. To do so, we must first have the justification for why we've chosen however many clusters to use, and that analysis comes through the elbow method once again.
+
+```{r}
+# Perform hierarchical clustering on the combined results
+library(pheatmap)
+# Create a matrix of log2 fold changes for the heatmap
+log2FC_matrix <- reshape2::dcast(combined_results, Locus ~ time, value.var = "log2FoldChange")
+log2FC_matrix <- as.matrix(log2FC_matrix[,-1])  # Remove the Locus column for clustering
+log2FC_matrix <- log2FC_matrix[complete.cases(log2FC_matrix), ]
+# Set row names to Locus
+rownames(log2FC_matrix) <- combined_results$Locus[!duplicated(combined_results$Locus)]
+# Perform hierarchical clustering
+hc <- hclust(dist(log2FC_matrix), method = "complete")
+# Plot the dendrogram
+plot(hc, main = "Hierarchical Clustering of Gene Expression by Time Point and Media")
+# Plot out WSS against number of clusters to find the elbow point
+wss <- numeric(15)  # properly initialized
+for (i in 1:15) {
+  wss[i] <- sum(kmeans(log2FC_matrix, centers = i)$withinss)
+}
+
+# Plot the WSS against number of clusters with a vertical line at the 4 cluster point
+plot(1:15, wss, type = "b", pch = 19, frame = FALSE, xlab = "Number of Clusters", ylab = "Within-cluster Sum of Squares (WSS)", main = "Elbow Method for Optimal Number of Clusters")
+abline(v = 3, col = "red", lty = 2, lwd = 2)  # vertical dashed red line at k = 3
+abline(v = 8, col = "blue", lty = 2, lwd = 2)  # vertical dashed red line at k = 8
+# Based on the elbow method, we can see that 3 clusters are sufficient in capturing most variation
+# 8 clusters can also be used to show more variation (pay attention to local inflection of slope)
+```
+## Save the clusters into a text file
+
+```{r}
+# Cut the dendrogram into 3 clusters
+cluster_assignments <- cutree(hc, k = 8)
+
+# Create a named vector of gene names
+gene_names <- rownames(log2FC_matrix)
+
+# Loop over each cluster and save gene names to a text file
+for (i in 1:8) {
+  cluster_genes <- gene_names[cluster_assignments == i]
+  write.table(cluster_genes,
+              file = paste0("media_effect_cluster_", i, "_genes.txt"),
+              quote = FALSE,
+              row.names = FALSE,
+              col.names = FALSE)
+}
+```
+
+
+## Print session info
+
+At the end of every analysis, before saving your notebook, we recommend printing out your session info. This helps make your code more reproducible by recording what versions of software and packages you used to run this.
+
+```{r}
+# Print session info
+sessioninfo::session_info()
+```

@@ -1,0 +1,162 @@
+---
+title: "MediaEffect3"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Analysis of Media on DNA Content
+
+```{r}
+library(tidyverse)
+
+# Load and prepare data
+df <- read_csv("Ozan_CellCycle_MediaEffect3-analysis-reformat.CSV")
+
+# Calculate % and reshape
+df_long <- df %>%
+  mutate(`4n` = `4n` * 100) %>%
+  select(Time, Media, `4n`) %>%
+  rename(Proportion = `4n`) %>%
+  mutate(Time = as.numeric(Time))  # Ensure time is numeric for line plot
+
+# Summarize to get mean and standard error
+df_summary <- df_long %>%
+  group_by(Time, Media) %>%
+  summarise(
+    mean_4n = mean(Proportion),
+    se_4n = sd(Proportion) / sqrt(n()),
+    .groups = "drop"
+  )
+
+# Plot with standard error bars
+plot <- ggplot(df_summary, aes(x = Time, y = mean_4n, color = Media)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = mean_4n - se_4n, ymax = mean_4n + se_4n), width = 1) +
+  scale_color_manual(values = c("Rich" = "orange", "Minimal" = "blue")) +
+  labs(
+    x = "Time (hours)",
+    y = "4n Population (%)"
+  )
+
+# Save the plots to separate PNG files
+ggsave("final_DNAcontent_plot.png", plot = plot, width = 4, height = 4, dpi = 300)
+```
+
+## Re-plotting for Figure 1F
+
+```{r}
+library(tidyverse)
+
+# Load and prepare data
+df <- read_csv("Ozan_CellCycle_MediaEffect3-analysis-reformat.CSV")
+
+# Calculate % and reshape, filter for 6 and 72 hour time points
+df_long <- df %>%
+  mutate(`2n` = `2n` * 100) %>%
+  select(Time, Media, `2n`) %>%
+  rename(Proportion = `2n`) %>%
+  mutate(Time = as.numeric(Time)) %>%
+  filter(Time %in% c(6, 72))
+
+# Summarize to get mean and standard error
+df_summary <- df_long %>%
+  group_by(Time, Media) %>%
+  summarise(
+    mean_2n = mean(Proportion),
+    se_2n = sd(Proportion) / sqrt(n()),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Time = as.factor(Time),
+    Media = factor(Media, levels = c("Rich", "Minimal"))
+  )
+
+# Create grouped bar plot matching the unbudded cells figure style
+plot <- ggplot(df_summary,
+               aes(x = Media, y = mean_2n, fill = Time)) +
+  geom_col(position = position_dodge(width = 0.8),
+           color = "black", width = 0.65) +
+  geom_errorbar(
+    aes(ymin = mean_2n - se_2n, ymax = mean_2n + se_2n),
+    position = position_dodge(width = 0.8),
+    width = 0.25, size = 0.6
+  ) +
+  scale_fill_manual(
+    values = c("6" = "#f29d9a", "72" = "#5fc9d8"),
+    labels = c("6" = "6 hours", "72" = "72 hours"),
+    name = "Timepoint"
+  ) +
+  scale_y_continuous(
+    expand = c(0, 0),
+    limits = c(0, max(df_summary$mean_2n + df_summary$se_2n) * 1.15),
+    labels = function(x) paste0(x, "%")
+  ) +
+  labs(
+    x = "Media",
+    y = "2n Population (%)",
+    title = "2n Population by media and timepoint"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+print(plot)
+ggsave("final_DNAcontent_plot.png", plot, width = 6,
+       height = 4.5, dpi = 300)
+
+# Statistical testing
+library(tidyverse)
+library(emmeans)
+
+# Perform two-way ANOVA on raw data
+aov_model <- aov(Proportion ~ Media * Time, data = df_long)
+
+# Print ANOVA results
+cat("Two-way ANOVA Results:\n")
+print(summary(aov_model))
+
+# Post-hoc pairwise comparisons using Tukey adjustment
+emmeans_results <- emmeans(aov_model, pairwise ~ Media * Time,
+                           adjust = "tukey")
+
+cat("\n\nPost-hoc Pairwise Comparisons (Tukey adjusted):\n")
+print(emmeans_results$contrasts)
+
+# Extract and display p-values
+pval_summary <- emmeans_results$contrasts %>%
+  as.data.frame() %>%
+  mutate(Significant = ifelse(p.value < 0.05, "Yes", "No"))
+
+cat("\n\nSummary of Significant Differences (α = 0.05):\n")
+print(pval_summary[, c("contrast", "p.value", "Significant")])
+
+# Alternative: Simple pairwise t-tests with Bonferroni correction
+cat("\n\nPairwise t-tests (Bonferroni corrected):\n")
+rich_6 <- df_long %>% filter(Media == "Rich", Time == 6) %>% pull(Proportion)
+rich_72 <- df_long %>% filter(Media == "Rich", Time == 72) %>% pull(Proportion)
+min_6 <- df_long %>% filter(Media == "Minimal", Time == 6) %>% pull(Proportion)
+min_72 <- df_long %>% filter(Media == "Minimal", Time == 72) %>% pull(Proportion)
+
+comparisons <- list(
+  "Rich 6h vs Rich 72h" = t.test(rich_6, rich_72),
+  "Minimal 6h vs Minimal 72h" = t.test(min_6, min_72),
+  "Rich 6h vs Minimal 6h" = t.test(rich_6, min_6),
+  "Rich 72h vs Minimal 72h" = t.test(rich_72, min_72)
+)
+
+for (name in names(comparisons)) {
+  p_val <- comparisons[[name]]$p.value
+  p_adj <- p.adjust(p_val, method = "bonferroni", n = 4)
+  cat(sprintf("%s: p = %.4f (adjusted p = %.4f)\n", name, p_val, p_adj))
+}
+```
+
