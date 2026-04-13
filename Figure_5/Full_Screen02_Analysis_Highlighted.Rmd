@@ -67,10 +67,10 @@ data_long <- df_summary %>%
 # For each drug: Exponential Dose 0, Exponential Dose 1, Quiescent Dose 0, Quiescent Dose 1
 data_long$Treatment_Group <- factor(data_long$Treatment_Group,
                                     levels = c(
-                                      "Exponential Caspofungin Dose 0", "Exponential Caspofungin Dose 1",
-                                      "Exponential Micafungin Dose 1", "Exponential AmphotericinB Dose 1",
-                                      "Quiescent Caspofungin Dose 0",  "Quiescent Caspofungin Dose 1",
-                                      "Quiescent Micafungin Dose 1", "Quiescent AmphotericinB Dose 1"))
+                                      "Exponential Caspofungin Dose 0", "Quiescent Caspofungin Dose 0",
+                                      "Exponential Micafungin Dose 1", "Quiescent Micafungin Dose 1",
+                                      "Exponential Caspofungin Dose 0",  "Quiescent Caspofungin Dose 1",
+                                      "Exponential Micafungin Dose 1", "Quiescent AmphotericinB Dose 1"))
 
 # Plot
 ggplot(data_long, aes(x = Treatment_Group, y = Value, fill = Growth)) +
@@ -254,3 +254,123 @@ tests_growth_within_dose_paired <- vals %>%
 tests_dose_within_growth_paired
 tests_growth_within_dose_paired
 ```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+
+# Calculate normalized Live_percent
+df_summary <- df %>%
+  group_by(Sample, Growth, Treatment, Dose) %>%
+  summarise(
+    Total = Live_percent + Dead_percent,
+    Live_percent = Live_percent / Total,
+    .groups = "drop"
+  )
+
+# Prepare data: 
+# - Dose 0 from any drug file is labeled as "Untreated" 
+# - Dose 1 is kept as the specific drug name
+plot_data <- df_summary %>%
+  mutate(Condition = case_when(
+    Dose == 0 ~ "Untreated",
+    TRUE ~ Treatment
+  )) %>%
+  # Keep Dose 0 (Untreated) and Dose 1 for the three drugs
+  filter(Dose == 0 | (Dose == 1 & Treatment %in% c("Caspofungin", "Micafungin", "AmphotericinB")))
+
+# Define x-axis order: Untreated pair, then Caspofungin, Micafungin, AmphotericinB pairs
+level_order <- c(
+  "Untreated Exponential", "Untreated Quiescent",
+  "Caspofungin Exponential", "Caspofungin Quiescent",
+  "Micafungin Exponential", "Micafungin Quiescent",
+  "AmphotericinB Exponential", "AmphotericinB Quiescent"
+)
+
+# Create grouped factor for plotting
+plot_data <- plot_data %>%
+  mutate(Group_Label = paste(Condition, Growth, sep = " "),
+         Group_Label = factor(Group_Label, levels = level_order))
+
+# Helper for p-value formatting
+fmt <- function(p) {
+  if (is.na(p)) return(list(p_label = "n/a", stars = "n.s."))
+  if (p < 0.001) return(list(p_label = "p < 0.001", stars = "***"))
+  if (p < 0.01) return(list(p_label = sprintf("p = %.3f", p), stars = "**"))
+  if (p < 0.05) return(list(p_label = sprintf("p = %.3f", p), stars = "*"))
+  list(p_label = sprintf("p = %.3f", p), stars = "n.s.")
+}
+
+# Paired t-tests: Exponential vs Quiescent for each of the 4 conditions
+paired_tests <- plot_data %>%
+  group_by(Condition) %>%
+  summarise(
+    data_wide = list(
+      pivot_wider(
+        cur_data_all(),
+        id_cols = Sample,
+        names_from = Growth,
+        values_from = Live_percent
+      )
+    ),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    test_results = map(data_wide, ~{
+      d <- .x
+      if (!all(c("Exponential", "Quiescent") %in% names(d))) {
+        return(list(p = NA_real_, n = 0))
+      }
+      # Keep only complete pairs
+      d_clean <- d %>% filter(!is.na(Exponential), !is.na(Quiescent))
+      n_pairs <- nrow(d_clean)
+      if (n_pairs >= 2) {
+        p_val <- tryCatch(
+          t.test(d_clean$Exponential, d_clean$Quiescent, paired = TRUE)$p.value,
+          error = function(e) NA_real_
+        )
+      } else {
+        p_val <- NA_real_
+      }
+      list(p = p_val, n = n_pairs)
+    }),
+    p_value = map_dbl(test_results, "p"),
+    n_pairs = map_int(test_results, "n"),
+    stats = map(p_value, fmt),
+    p_label = map_chr(stats, "p_label"),
+    stars = map_chr(stats, "stars")
+  ) %>%
+  select(Condition, p_value, n_pairs, p_label, stars)
+
+# View statistical results
+print(paired_tests)
+
+# Plot
+ggplot(plot_data, aes(x = Group_Label, y = Live_percent, fill = Growth)) +
+  geom_boxplot(outlier.shape = NA, width = 0.6, alpha = 0.8) +
+  # Non-reference isolates in black
+  geom_jitter(data = subset(plot_data, !Sample %in% c("SC5314")),
+              position = position_jitter(width = 0.08, height = 0),
+              size = 1, color = "black", alpha = 0.7) +
+  # Reference strain SC5314 in orange
+  geom_jitter(data = subset(plot_data, Sample %in% c("SC5314")),
+              position = position_jitter(width = 0.08, height = 0),
+              size = 2, color = "orange") +
+  scale_y_continuous(name = "Viability (%)", limits = c(0, 1)) +
+  scale_fill_manual(values = c("Exponential" = "#F8766D", "Quiescent" = "#00BFC4")) +
+  theme_gray() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_blank(),
+    legend.position = "right",
+    panel.grid.major.x = element_blank()
+  ) +
+  labs(fill = "Growth Phase",
+       title = "Drug Response: Exponential vs Quiescent",
+       subtitle = "Paired t-tests comparing growth phases (Dose 0 = Untreated, Dose 1 = Treated)")
+
+ggsave("drug_response_4pairs.png", width = 10, height = 6, dpi = 300)
+```
+
