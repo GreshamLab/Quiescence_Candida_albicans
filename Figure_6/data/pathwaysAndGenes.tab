@@ -1,0 +1,157 @@
+UNIQUE-ID	NAME	GENE-NAMES	GENE-IDS
+PWY3B3-1	oxylipin biosynthesis		
+PWY3B3-787	sorbose utilization	SOU1	orf19.2896
+PWY3B3-8	fermentation	ADH2:orf19.4504:ADH3:ADH1:ADH5:ADH4:PDC11:PDC12:ALD5:ALD6:orf19.3045:orf19.6306	orf19.5113:orf19.4504:orf19.4505:orf19.3997:orf19.2608:orf19.271:orf19.2877:orf19.4608:orf19.5806:orf19.742:orf19.3045:orf19.6306
+PWY3O-4031	glycogen biosynthesis	GLG2:orf19.3325:GSY1:GLC3	orf19.7434:orf19.3325:orf19.3278:orf19.5622
+BRANCHED-CHAIN-AA-SYN-PWY	superpathway of leucine, valine, and isoleucine biosynthesis	LEU2:LEU1:LEU4:LEU42:ILV3:BAT21:BAT22:ILV5:ILV2:ILV6:ILV1:CHA1:orf19.7404	orf19.7080:orf19.7498:orf19.6086:orf19.1375:orf19.4040:orf19.797:orf19.6994:orf19.88:orf19.1613:orf19.4650:orf19.5480:orf19.1996:orf19.7404
+COMPLETE-ARO-PWY	superpathway of phenylalanine, tyrosine and tryptophan biosynthesis	ARO2:ARO1:ARO4:ARO3:TRP3:TRP1:TRP4:TRP2:TRP5:ARO8:ARO9:PHA2:ARO7	orf19.1986:orf19.4704:orf19.4060:orf19.1517:orf19.5243:orf19.6096:orf19.3099:orf19.2546:orf19.4718:orf19.2098:orf19.1237:orf19.234:orf19.1170
+PWY3O-645	superpathway of glycine biosynthesis	SHM2:SHM1:GLY1:orf19.6305:HBR2	orf19.5750:orf19.1342:orf19.986:orf19.6305:orf19.1078
+PWY0-901	selenocysteine biosynthesis	SES1:orf19.1201	orf19.269:orf19.1201
+ALANINE-SYN2-PWY	alanine biosynthesis	orf19.346	orf19.346
+ARGSYNBSUB-PWY	arginine biosynthesis	ARG1:ARG4:ARG3:ARG8:ARG5,6:CPA1:orf19.3221:URA2:ARG2	orf19.7469:orf19.6689:orf19.5610:orf19.3770:orf19.4788:orf19.4630:orf19.3221:orf19.2360:orf19.56
+ASPARAGINE-BIOSYNTHESIS	asparagine biosynthesis	AAT1:AAT22:AAT21:ASN1	orf19.3554:orf19.4669:orf19.6287:orf19.198
+ASPBIO-PWY	aspartate biosynthesis	PYC2:AAT1:AAT22:AAT21	orf19.789:orf19.3554:orf19.4669:orf19.6287
+PWY-801	cysteine and homocysteine interconversion	CYS4:CYS3:STR2:orf19.2092	orf19.4536:orf19.6402:orf19.1033:orf19.2092
+GLUGLNSYN-PWY	glutamate biosynthesis from glutamine	GLT1	orf19.6257
+GLUTSYNIII-PWY	glutamate biosynthesis from ammonia	GDH2:GDH3	orf19.2192:orf19.4716
+GLNSYN-PWY	glutamine biosynthesis	GLN1	orf19.646
+GLYSYN-ALA-PWY	glycine biosynthesis from alanine	HBR2	orf19.1078
+GLYSYN-SER-PWY	glycine biosynthesis from serine	SHM2:SHM1	orf19.5750:orf19.1342
+GLYSYN-THR-PWY	glycine biosynthesis from threonine	GLY1:orf19.6305	orf19.986:orf19.6305
+THREOCAT-PWY	threonine degradation	SPL1:ILV1:CHA1:orf19.7404:CYS3:STR2:AMO2:XYL2:HEM1	orf19.7081:orf19.5480:orf19.1996:orf19.7404:orf19.6402:orf19.1033:orf19.3152:orf19.7676:orf19.2601
+HISTSYN-PWY	histidine biosynthesis	orf19.6699:HIS5:HIS3:SNO1:HIS7:orf19.6796:HIS4:HIS1	orf19.6699:orf19.4177:orf19.183:orf19.2948:orf19.5505:orf19.6796:orf19.5639:orf19.4026
+ILEUSYN-PWY	isoleucine biosynthesis	ILV3:BAT21:BAT22:ILV5:ILV2:ILV6:ILV1:CHA1:orf19.7404	orf19.4040:orf19.797:orf19.6994:orf19.88:orf19.1613:orf19.4650:orf19.5480:orf19.1996:orf19.7404
+LEUSYN-PWY	leucine biosynthesis	LEU2:BAT21:BAT22:LEU1:LEU4:LEU42	orf19.7080:orf19.797:orf19.6994:orf19.7498:orf19.6086:orf19.1375
+LYSINE-AMINOAD-PWY	lysine biosynthesis	LYS1:LYS21:LYS22:LYS4:LYS2:LYS9	orf19.1789.1:orf19.772:orf19.4506:orf19.3846:orf19.2970:orf19.7448
+PWY-5041	S-adenosylmethionine cycle	SAM2:SAH1:MET6	orf19.657:orf19.3911:orf19.2551
+PWY3B3-43	methionine biosynthesis	MET15:MET6:orf19.1159:MET2	orf19.5645:orf19.2551:orf19.1159:orf19.2618
+HOMOSERSYN-PWY	homoserine biosynthesis	HOM3:HOM2:HOM6	orf19.1235:orf19.1559:orf19.2951
+CITRULBIO-PWY	citrulline biosynthesis	AFP99:CAR1:orf19.3418:CAR2:ARG3:PRO1:PRO2:PUT1	orf19.5862:orf19.3934:orf19.3418:orf19.5641:orf19.5610:orf19.7638:orf19.6779:orf19.4274
+PHESYN	phenylalanine biosynthesis	ARO8:ARO9:PHA2:ARO7	orf19.2098:orf19.1237:orf19.234:orf19.1170
+ARG-PRO-PWY	arginine degradation (arginase pathway)	PRO3:CAR2:AFP99:CAR1:orf19.3418	orf19.5650:orf19.5641:orf19.5862:orf19.3934:orf19.3418
+PROLINE-SYN2-PWY	proline biosynthesis	PRO3:PRO2:PRO1:GDH2	orf19.5650:orf19.6779:orf19.7638:orf19.2192
+SERSYN-PWY	serine biosynthesis	SER1:orf19.5838:SER33	orf19.5484:orf19.5838:orf19.5263
+HOMOSER-THRESYN-PWY	threonine biosynthesis	THR1:THR4	orf19.923:orf19.4233
+TRPSYN-PWY	tryptophan biosynthesis	TRP3:TRP1:TRP4:TRP2:TRP5	orf19.5243:orf19.6096:orf19.3099:orf19.2546:orf19.4718
+PWY3O-4120	tyrosine biosynthesis	ARO8:ARO7:TYR1:ARO9	orf19.2098:orf19.1170:orf19.4605:orf19.1237
+VALSYN-PWY	valine biosynthesis	ILV3:BAT21:BAT22:ILV5:ILV2:ILV6	orf19.4040:orf19.797:orf19.6994:orf19.88:orf19.1613:orf19.4650
+TRNA-CHARGING-PWY	tRNA charging pathway	orf19.3341:orf19.4931:GLN4:orf19.7057:orf19.2415:ILS1:orf19.2382:NAM2:CDC60:VAS1:ALA1:DED81:orf19.6698:orf19.4478:DPS1-1:TYS1:orf19.109:WRS1:MSW1:MST1:THS1:SES1:orf19.1201:orf19.6701:orf19.2387:PRS:FRS2:MSF1:FRS1:MES1:MSM1:KRS1:MSK1:HTS1:GRS1	orf19.3341:orf19.4931:orf19.7064:orf19.7057:orf19.2415:orf19.2138:orf19.2382:orf19.5705:orf19.2560:orf19.1295:orf19.5746:orf19.6702:orf19.6698:orf19.4478:orf19.2407:orf19.2694:orf19.109:orf19.5226:orf19.4299:orf19.2984:orf19.5685:orf19.269:orf19.1201:orf19.6701:orf19.2387:orf19.2532:orf19.2960:orf19.2039:orf19.2573:orf19.3955:orf19.3950:orf19.6749:orf19.6533:orf19.4051:orf19.437
+GLUCONEO-PWY	gluconeogenesis	PGI1:FBP1:FBA1:TDH3:PGK1:GPM2:GPM1:ENO1:PCK1:MDH1:MAE1:PYC2	orf19.3888:orf19.6178:orf19.4618:orf19.6814:orf19.3651:orf19.1067:orf19.903:orf19.395:orf19.7514:orf19.7481:orf19.3419:orf19.789
+GLUCOSE-MANNOSYL-CHITO-DOLICHOL	lipid-linked oligosaccharide biosynthesis	orf19.1092:ECM39:ALG9:ALG11:ALG2:DIE2:ALG8:ALG6	orf19.1092:orf19.5164:orf19.4442:orf19.3468:orf19.1221:orf19.6971:orf19.1659:orf19.1843
+PWY-842	starch degradation	GPH1:GDB1:GCA2:GCA1:orf19.3982:ROT2:MAL2	orf19.7021:orf19.744:orf19.999:orf19.4899:orf19.3982:orf19.974:orf19.7668
+TREDEG-YEAST-PWY	trehalose catabolism	ATC1:NTH1	orf19.6214:orf19.7479
+PWY-3881	mannitol biosynthesis	PMI1	orf19.1390
+GALACTMETAB-PWY	galactose degradation	GAL1:GAL7:GAL102:UGP1:GAL10	orf19.3670:orf19.3675:orf19.3674:orf19.1738:orf19.3672
+P61-PWY	UDP-glucose conversion	UGP1:GAL102:GAL10:orf19.4807:IPP1:PGM2	orf19.1738:orf19.3674:orf19.3672:orf19.4807:orf19.3590:orf19.2841
+TRESYN-PWY	trehalose biosynthesis	TPS1:TPS2	orf19.6640:orf19.3038
+PWY3B3-13	chitin biosynthesis	CHS2:CHS8:CHS1:CHS3	orf19.7298:orf19.5384:orf19.5188:orf19.4937
+PWY3B3-10	ubiquinone (coenzyme Q) biosynthesis	orf19.7643:orf19.3058:COQ5:orf19.1940:COQ3:BTS1:orf19.7478	orf19.7643:orf19.3058:orf19.3577:orf19.1940:orf19.3400:orf19.6674:orf19.7478
+PWY3B3-1588	pantothenate and coenzyme A biosynthesis	orf19.1776:orf19.4005:orf19.7378:orf19.3260:orf19.7357:orf19.5576:orf19.163:orf19.4006:orf19.6057:BAT21:BAT22	orf19.1776:orf19.4005:orf19.7378:orf19.3260:orf19.7357:orf19.5576:orf19.163:orf19.4006:orf19.6057:orf19.797:orf19.6994
+PWY3B3-2	tetrapyrrole biosynthesis	HEM1:HEM2:HEM3:HEM4	orf19.2601:orf19.898:orf19.1742:orf19.1744
+PWY-5083	NAD/NADH phosphorylation and dephosphorylation	LPD1:orf19.7393:NDH51:NAD6:NAD5:NAD4L:NAD4:NAD3:NAD2:NAD1:FESUR1	orf19.6127:orf19.7393:orf19.4495:CAALFMP02:CAALFMP13:CAALFMP12:CAALFMP14:CAALFMP10:CAALFMP09:CAALFMP03:orf19.6794
+NADSYN-PWY	NAD biosynthesis (from tryptophan)	orf19.7499:orf19.1460:orf19.5054:orf19.3515:orf19.394:orf19.5443:orf19.5809:orf19.597:orf19.7522:orf19.583	orf19.7499:orf19.1460:orf19.5054:orf19.3515:orf19.394:orf19.5443:orf19.5809:orf19.597:orf19.7522:orf19.583
+PWY3O-4106	nicotinamide riboside salvage pathway	orf19.7499	orf19.7499
+PWY3O-4107	NAD salvage pathway	orf19.7499:NPT1:PNC1:orf19.1460	orf19.7499:orf19.7176:orf19.6684:orf19.1460
+PWY-5194	siroheme biosynthesis	MET8:MET1:orf19.5842	orf19.6780:orf19.5811:orf19.5842
+HEME-BIOSYNTHESIS-II	heme biosynthesis	orf19.5369:HEM14:HEM15:HEM13	orf19.5369:orf19.4747:orf19.1880:orf19.2803
+GLUT-REDOX2-PWY	glutathione-glutaredoxin redox reactions	GLR1:orf19.4436:GPX1:orf19.86:GPX2:GTT1:orf19.6947:orf19.359:GTT13	orf19.4147:orf19.4436:orf19.87:orf19.86:orf19.85:orf19.6998:orf19.6947:orf19.359:orf19.356
+GLUTATHIONESYN-PWY	glutathione biosynthesis	GCS1:GSH2	orf19.5059:orf19.6404
+PWY-4041	gamma-glutamyl cycle	GSH2:GCS1	orf19.6404:orf19.5059
+THIOREDOX-PWY	thioredoxin pathway	TRR1	orf19.4290
+PWY3B3-281	dehydro-D-arabinono-1,4-lactone biosynthesis	ARA1:ALO1	orf19.2172:orf19.7551
+PWY3B3-661	thiamin (vitamin B1) biosynthesis	THI6:THI20:orf19.1110	orf19.277:orf19.889:orf19.1110
+RIBOSYN2-PWY	riboflavin and FMN and FAD biosynthesis	orf19.4373:orf19.4723:orf19.410.3:RIB5:RIB3:HOM6:RIB1	orf19.4373:orf19.4723:orf19.410.3:orf19.4024:orf19.5228:orf19.2951:orf19.2862
+BIOTIN-SYNTHESIS-PWY	biotin biosynthesis	orf19.2590:BIO2:BIO32:orf19.2591	orf19.2590:orf19.2593:orf19.3567:orf19.2591
+PWY-2161	folate polyglutamylation I	MIS11:MIS12:SHM2:SHM1:orf19.4516	orf19.2364:orf19.7534:orf19.5750:orf19.1342:orf19.4516
+PWY-2161B	folate polyglutamylation II	orf19.4516	orf19.4516
+PWY-2201	folate transformations	SHM2:SHM1:MIS11:MIS12:GCV2:orf19.5321:orf19.288:orf19.3810:orf19.4523	orf19.5750:orf19.1342:orf19.2364:orf19.7534:orf19.385:orf19.5321:orf19.288:orf19.3810:orf19.4523
+PWY-3742	tetrahydrofolate biosynthesis	orf19.3957:FOL1:orf19.6908:DFR1:ABZ1:orf19.5837	orf19.3957:orf19.579:orf19.6908:orf19.5142:orf19.1291:orf19.5837
+PWY-3841	formylTHF biosynthesis	orf19.6908:DFR1:SHM2:SHM1:GCV2:orf19.4516:MIS11:MIS12:orf19.5321:orf19.288:CDC21:MET6:orf19.4523	orf19.6908:orf19.5142:orf19.5750:orf19.1342:orf19.385:orf19.4516:orf19.2364:orf19.7534:orf19.5321:orf19.288:orf19.3549:orf19.2551:orf19.4523
+PWY3O-20	folate polyglutamylation	MIS11:MIS12:SHM2:SHM1:orf19.4516:orf19.5321:orf19.288:orf19.6908:DFR1	orf19.2364:orf19.7534:orf19.5750:orf19.1342:orf19.4516:orf19.5321:orf19.288:orf19.6908:orf19.5142
+PLPSAL-PWY	pyridoxal 5'-phosphate (vitamin B6) biosynthesis	PDX3:BUD16	orf19.550:orf19.1828
+PWY3B3-3	ergosterol biosynthesis	ERG20:ERG1:ERG7:ERG9:ERG11:ERG24:ERG25:ERG6:ERG2:ERG3:ERG5:ERG4:ERG27:ERG26:ERG10:ERG13:HMG1:ERG12:ERG8:MVD:IDI1	orf19.4491:orf19.406:orf19.1570:orf19.3616:orf19.922:orf19.1598:orf19.3732:orf19.1631:orf19.6026:orf19.767:orf19.5178:orf19.5379:orf19.3240:orf19.2909:orf19.1591:orf19.7312:orf19.1031:orf19.4809:orf19.4606:orf19.6105:orf19.2775
+SPHINGOLIPID-SYN-PWY	sphingolipid metabolism	orf19.5027:orf19.6438:KSR1:SUR2:orf19.5257:orf19.3329:MIT1:HSX11	orf19.5027:orf19.6438:orf19.6131:orf19.5818:orf19.5257:orf19.3329:orf19.4077:orf19.4592
+TRIGLSYN-PWY	triacylglycerol biosynthesis	DPP2:DPP1:orf19.1181:DPP3:orf19.6941:SCT2:SCT1:SLC1	orf19.1155:orf19.656:orf19.1181:orf19.6459:orf19.6941:orf19.5815:orf19.1289:orf19.250
+FASYN-ELONG-PWY	fatty acid elongation - saturated	FAS1:FAS2	orf19.979:orf19.5949
+FASYN-INITIAL-PWY	fatty acid biosynthesis - initial steps	FAS1:FAS2:orf19.7645:ACC1	orf19.979:orf19.5949:orf19.7645:orf19.7466
+PWY-5080	very long chain fatty acid biosynthesis	orf19.6343:orf19.6007:FEN12:orf19.3859:orf19.3293	orf19.6343:orf19.6007:orf19.908:orf19.3859:orf19.3293
+PHOSLIPSYN2-PWY	phospholipid biosynthesis	PEL1:orf19.3695:orf19.6860:CDS1:DPP1:orf19.1181:orf19.6045:orf19.3954:orf19.6100:CHO1:CHO2	orf19.7072:orf19.3695:orf19.6860:orf19.1279:orf19.656:orf19.1181:orf19.6045:orf19.3954:orf19.6100:orf19.677:orf19.169
+PWY3O-450	phosphatidylcholine biosynthesis (Kennedy pathway)	orf19.3695:orf19.6966:orf19.6912:MUQ1:PCT1	orf19.3695:orf19.6966:orf19.6912:orf19.2107:orf19.4186
+YEAST-SALV-PYRMID-DNTP	salvage pathways of pyrimidine deoxyribonucleotides	orf19.3123.2:orf19.1888:URK1	orf19.3123.2:orf19.1888:orf19.5864
+DENOVOPURINE2-PWY	purine nucleotides <i>de novo</i> biosynthesis	ADE4:orf19.5159:ADE8:ADE6:ADE5,7:ADE1:ADE17:ADE12:ADE13:ADK1:orf19.7118:IMH3:GUA1:GUK1:RNR22:RNR1:RNR21:orf19.5845:ADE2:YNK1	orf19.1233:orf19.5159:orf19.5789:orf19.6317:orf19.5061:orf19.7484:orf19.492:orf19.4827:orf19.3870:orf19.3391:orf19.7118:orf19.18:orf19.4813:orf19.1115:orf19.1868:orf19.5779:orf19.5801:orf19.5845:orf19.5906:orf19.4311
+P121-PWY	salvage pathways of purine nucleosides	AAH1:ADE12:ADE13:APT1:IMH3:orf19.317:HPT1:orf19.7029	orf19.2251:orf19.4827:orf19.3870:orf19.1448:orf19.18:orf19.317:orf19.5832:orf19.7029
+SALVADEHYPOX-PWY	salvage pathways of adenine, hypoxanthine, and their nucleosides	APT1:orf19.317:HPT1:ADO1:AAH1	orf19.1448:orf19.317:orf19.5832:orf19.5591:orf19.2251
+SALVPURINE2-PWY	salvage pathways of guanine, xanthine, and their nucleosides	orf19.7029:orf19.317:HPT1	orf19.7029:orf19.317:orf19.5832
+PWY0-162	pyrimidine ribonucleotides <i>de novo</i> biosynthesis	URA2:URA4:URA1:URA5:URA3:orf19.5195:YNK1:URA7	orf19.2360:orf19.1977:orf19.4836:orf19.2555:orf19.1716:orf19.5195:orf19.4311:orf19.3941
+PWY0-163	salvage pathways of pyrimidine ribonucleotides	FUR1:orf19.3123.2:FCA1:orf19.5195:URK1	orf19.2640:orf19.3123.2:orf19.4195.1:orf19.5195:orf19.5864
+PWY0-166	pyrimidine deoxyribonucleotides <i>de novo</i> biosynthesis	DUT1:CDC21:orf19.1137:YNK1:RNR22:RNR1:RNR21:orf19.5845	orf19.3322:orf19.3549:orf19.1137:orf19.4311:orf19.1868:orf19.5779:orf19.5801:orf19.5845
+PWY3B3-16	farnesol biosynthesis		
+ARO-PWY	chorismate biosynthesis	ARO2:ARO1:ARO4:ARO3	orf19.1986:orf19.4704:orf19.4060:orf19.1517
+PWY0-662	PRPP biosynthesis	PRS5:PRS1:orf19.4611:orf19.969	orf19.2193:orf19.1575:orf19.4611:orf19.969
+POLYAMSYN-YEAST-PWY	polyamine biosynthesis	SPE1:SPE3:orf19.4960:SPE2	orf19.6032:orf19.2250:orf19.4960:orf19.568
+UDPNAGSYN-YEAST-PWY	UDP-N-acetylglucosamine biosynthesis	GFA1:GNA1:AGM1:UAP1	orf19.1618:orf19.837:orf19.5013:orf19.4265
+PWY-2301	myo-inositol biosynthesis	INO1	orf19.7585
+ACETATEUTIL2-PWY	acetate utilization	ACS2:ACS1	orf19.1064:orf19.1743
+ETOH-ACETYLCOA-ANA-PWY	ethanol degradation	ADH2:orf19.4504:ADH3:ADH1:ADH5:ADH4	orf19.5113:orf19.4504:orf19.4505:orf19.3997:orf19.2608:orf19.271
+PWY66-21	oxidative ethanol degradation	ADH2:orf19.4504:ADH3:ADH1:ADH5:ADH4:orf19.6306:orf19.3045:ALD6:ALD5	orf19.5113:orf19.4504:orf19.4505:orf19.3997:orf19.2608:orf19.271:orf19.6306:orf19.3045:orf19.742:orf19.5806
+AERO-GLYCEROL-CAT-PWY	glycerol degradation	GUT1:GUT2	orf19.558:orf19.3133
+PWY3B3-2134	methylglyoxal pathway	GLO1:orf19.4088:orf19.5611:ALD5:orf19.6306:ALD6:orf19.3045:orf19.6043:DLD1:AIP2:DLD2:CYB2	orf19.6058:orf19.4088:orf19.5611:orf19.5806:orf19.6306:orf19.742:orf19.3045:orf19.6043:orf19.5805:orf19.300:orf19.6755:orf19.5000
+GLCMANNANAUT-PWY	N-acetylglucosamine , N-acetylmannosamine and N-acetylneuraminic acid dissimilation	GFA1:UAP1:NAG1:DAC1:HXK1	orf19.1618:orf19.4265:orf19.2156:orf19.2157:orf19.2154
+GLUAMCAT-PWY	N-acetylglucosamine degradation	NAG1:DAC1:HXK1	orf19.2156:orf19.2157:orf19.2154
+POLYAMINE-DEG-PWY	polyamine degradation (oxidative deamination pathway)	orf19.4589	orf19.4589
+4AMINOBUTMETAB-PWY	GABA degradation	UGA1:UGA11:orf19.345:UGA2	orf19.802:orf19.854:orf19.345:orf19.4543
+ALLANTOINDEG-PWY	allantoin degradation	DAL1:orf19.2065:orf19.1421:DUR1,2	orf19.5454:orf19.2065:orf19.1421:orf19.780
+PWY-0	polyamine degradation (N-acetyl pathway)	SRB1:orf19.4589:orf19.3045:ALD6:orf19.6306	orf19.6190:orf19.4589:orf19.3045:orf19.742:orf19.6306
+BETA-ALA-DEGRADATION-I-PWY	beta-alanine degradation	UGA11	orf19.854
+PWY-3322	glutamate degradation to ammonia	GDH2	orf19.2192
+PWY-5046	branched-chain &alpha;-keto acid dehydrogenase complexes	LPD1	orf19.6127
+PWY3B3-0	2-keto glutarate dehydrogenase complex	KGD1:KGD2:LPD1	orf19.6165:orf19.6126:orf19.6127
+ALANINE-DEG3-PWY	alanine degradation	orf19.346	orf19.346
+ASPARAGINE-DEG1-PWY	asparagine degradation	AAT1:AAT22:AAT21:orf19.7593	orf19.3554:orf19.4669:orf19.6287:orf19.7593
+MALATE-ASPARTATE-SHUTTLE-PWY	aspartate degradation	MDH1:AAT1:AAT22:AAT21	orf19.7481:orf19.3554:orf19.4669:orf19.6287
+CYSTEINE-DEG-PWY	cysteine degradation	AAT1:AAT22:AAT21	orf19.3554:orf19.4669:orf19.6287
+GLUDEG-I-PWY	glutamate degradation to succinate	UGA1:UGA11:GAD1:UGA2:orf19.345	orf19.802:orf19.854:orf19.1153:orf19.4543:orf19.345
+GLUTAMINEFUM-PWY	glutamine degradation	GLT1:AAT1:AAT22:AAT21:FUM11	orf19.6257:orf19.3554:orf19.4669:orf19.6287:orf19.543
+GLYCCAT-PWY	glycine degradation	GCV2:GCV1:orf19.3810:MIS11:MIS12	orf19.385:orf19.5519:orf19.3810:orf19.2364:orf19.7534
+PWY-5078	isoleucine degradation	BAT21:BAT22:ARO10:PDC11:PDC12:ADH2:orf19.4504:ADH3:ADH1:ADH5	orf19.797:orf19.6994:orf19.1847:orf19.2877:orf19.4608:orf19.5113:orf19.4504:orf19.4505:orf19.3997:orf19.2608
+PWY-5076	leucine degradation	BAT21:BAT22:ADH2:orf19.4504:ADH3:ADH1:ADH5:PDC11:PDC12	orf19.797:orf19.6994:orf19.5113:orf19.4504:orf19.4505:orf19.3997:orf19.2608:orf19.2877:orf19.4608
+LYSINE-DEG1-PWY	lysine degradation	ERG10	orf19.1591
+PWY-5079	phenylalanine degradation	ARO8:ARO9:ADH2:orf19.4504:ADH3:ADH1:ADH5	orf19.2098:orf19.1237:orf19.5113:orf19.4504:orf19.4505:orf19.3997:orf19.2608
+PROUT-PWY	proline degradation	PUT2:PUT1	orf19.3974:orf19.4274
+SERDEG-PWY	serine degradation	CHA1:orf19.7404	orf19.1996:orf19.7404
+PWY3O-214	tryptophan degradation		
+TRYPTOPHAN-DEGRADATION-1	tryptophan degradation via kynurenine	orf19.5809:orf19.597:orf19.7522:orf19.583:orf19.5443:orf19.394:orf19.3515:orf19.5054	orf19.5809:orf19.597:orf19.7522:orf19.583:orf19.5443:orf19.394:orf19.3515:orf19.5054
+PWY3O-4108	tyrosol biosynthesis	ARO10:ADH1:ADH3:ADH5:ADH2:ARO9:ARO8	orf19.1847:orf19.3997:orf19.4505:orf19.2608:orf19.5113:orf19.1237:orf19.2098
+PWY-5057	valine degradation	BAT21:BAT22:PDC11:PDC12:ADH2:orf19.4504:ADH3:ADH1:ADH5	orf19.797:orf19.6994:orf19.2877:orf19.4608:orf19.5113:orf19.4504:orf19.4505:orf19.3997:orf19.2608
+P345-PWY	aldoxime degradation	orf19.3956:orf19.5536:orf19.5169:orf19.6557	orf19.3956:orf19.5536:orf19.5169:orf19.6557
+PWY3B3-24	urate degradation	orf19.2114	orf19.2114
+PWY3B3-29	aromatic compound degradation	orf19.2281:POT1-2:FOX3:POT1	orf19.2281:orf19.2046:orf19.1704:orf19.7520
+PWY0-321	phenylacetate degradation	POT1-2:FOX3:POT1	orf19.2046:orf19.1704:orf19.7520
+PWY3B3-1543	formaldehyde oxidation (glutathione-dependent)	orf19.6596:FDH3:FDH1:orf19.1117:orf19.1774	orf19.6596:orf19.7600:orf19.638:orf19.1117:orf19.1774
+GLYCOCAT-YEAST-PWY	glycogen catabolism	GDB1:GPH1:SGA1	orf19.744:orf19.7021:orf19.1719
+MANNCAT-PWY	mannose degradation	PMI1	orf19.1390
+PWY-3861	mannitol degradation	PMI1:orf19.5517	orf19.1390:orf19.5517
+RIBOKIN-PWY	ribose degradation	RBK1:RKI1:TKL1	orf19.6344:orf19.1701:orf19.5112
+PWY3B3-20	D-arabinose degradation	ARD	orf19.6322
+PWY-5515	L-arabinose degradation	GRE3	orf19.4317
+PWY-621	sucrose degradation	PGI1:PGM2:UGP1:HXK1:HXK2	orf19.3888:orf19.2841:orf19.1738:orf19.2154:orf19.542
+PWY-2723	trehalose degradation V	GLK4:GLK1:GAL10	orf19.6116:orf19.734:orf19.3672
+PWY-5516	xylose degradation	GRE3	orf19.4317
+PYRUVDEHYD-PWY	pyruvate dehydrogenase complex	PDA1:PDB1:LAT1:LPD1	orf19.3097:orf19.5294:orf19.6561:orf19.6127
+LIPAS-PWY	triacylglycerol degradation	orf19.3043:orf19.4699:orf19.5426	orf19.3043:orf19.4699:orf19.5426
+YEAST-FAO-PWY	fatty acid oxidation pathway	POT1-2:FOX3:POT1:FAA2-1:FAA2:FAA21:FAT1:FAA2-3:FAA4:ECI1:orf19.6443:POX1-3:PXP2:POX1	orf19.2046:orf19.1704:orf19.7520:orf19.4114:orf19.7379:orf19.272:orf19.3653:orf19.7156:orf19.7592:orf19.6445:orf19.6443:orf19.1652:orf19.1655:orf19.5723
+PWY-781	sulfate assimilation	MET3:MET14:MET10:ECM17:MET16	orf19.5025:orf19.946:orf19.4076:orf19.4099:orf19.3106
+DETOX1-PWY	removal of superoxide radicals	SOD1:SOD6:SOD4:SOD5:SOD3:SOD2:CAT1	orf19.2770.1:orf19.2108:orf19.2062:orf19.2060:orf19.7111.1:orf19.3340:orf19.6229
+P344-PWY	acrylonitrile degradation	orf19.3956:orf19.5536:orf19.5169:orf19.6557	orf19.3956:orf19.5536:orf19.5169:orf19.6557
+LARABITOLUTIL-PWY	xylitol degradation	XYL2:XKS1	orf19.7676:orf19.1290
+PWY3B3-490	ribitol degradation	AYR2	orf19.5615
+SORBDEG-PWY	sorbitol degradation	PFK2:PFK1:FBA1	orf19.6540:orf19.3967:orf19.4618
+GLYCOLYSIS	glycolysis	CDC19:ENO1:GPM2:GPM1:PGK1:TDH3:TPI1:FBA1:PFK2:PFK1:PGI1	orf19.3575:orf19.395:orf19.1067:orf19.903:orf19.3651:orf19.6814:orf19.6745:orf19.4618:orf19.6540:orf19.3967:orf19.3888
+NONOXIPENT-PWY	non-oxidative branch of the pentose phosphate pathway	TAL1:TKL1:orf19.7108:RKI1	orf19.4371:orf19.5112:orf19.7108:orf19.1701
+OXIDATIVEPENT-PWY	oxidative branch of the pentose phosphate pathway	SOL3:GND1:ZWF1	orf19.704:orf19.5024:orf19.4754
+PENTOSE-P-PWY	superpathway of oxidative and non-oxidative branches of pentose phosphate pathway	TAL1:TKL1:orf19.7108:RKI1:SOL3:GND1:ZWF1	orf19.4371:orf19.5112:orf19.7108:orf19.1701:orf19.704:orf19.5024:orf19.4754
+PWY-4302	aerobic respiration (cyanide insensitive, alternative oxidase) -- electron donors	AOX1:AOX2:orf19.4468:SDH1:SDH2:orf19.1480:NDH51:NAD6:NAD5:NAD4L:NAD4:NAD3:NAD2:NAD1:FESUR1	orf19.4774:orf19.4773:orf19.4468:orf19.440:orf19.637:orf19.1480:orf19.4495:CAALFMP02:CAALFMP13:CAALFMP12:CAALFMP14:CAALFMP10:CAALFMP09:CAALFMP03:orf19.6794
+PWY-3781	aerobic respiration (cyanide sensitive) -- electron donors	orf19.4468:SDH1:SDH2:orf19.1480:NDH51:NAD6:NAD5:NAD4L:NAD4:NAD3:NAD2:NAD1:FESUR1:COB:orf19.913.2:orf19.4016:RIP1:QCR9:QCR8:QCR7:orf19.2439.1:QCR2:CYT1:COX13:COX9:COX8:COX7:COX6:COX4:COX5:COX2:COX1:COX3B:COX3A:orf19.1082.1	orf19.4468:orf19.440:orf19.637:orf19.1480:orf19.4495:CAALFMP02:CAALFMP13:CAALFMP12:CAALFMP14:CAALFMP10:CAALFMP09:CAALFMP03:orf19.6794:G3B3-75:orf19.913.2:orf19.4016:orf19.5893:orf19.2707.1:orf19.4490.2:orf19.5629:orf19.2439.1:orf19.2644:orf19.3527:orf19.1467:orf19.5213.2:orf19.5213.1:orf19.227:orf19.873.1:orf19.1471:orf19.4759:CAALFMP01:G3B3-18:CAALFMP15:CAALFMP04:orf19.1082.1
+GLYOXYLATE-BYPASS	glyoxylate cycle	MDH1-3:MLS1:ICL1:CIT1:ACO1:ACO2	orf19.5323:orf19.4833:orf19.6844:orf19.4393:orf19.6385:orf19.6632
+PWY3B3-100	TCA cycle, aerobic respiration	MDH1-1:FUM12:FUM11:LSC2:LSC1:CIT1:ACO1:ACO2:KGD1:PYC2:IDH2:IDH1:KGD2:orf19.4468:SDH1:SDH2:orf19.1480	orf19.4602:orf19.6724:orf19.543:orf19.1860:orf19.3358:orf19.4393:orf19.6385:orf19.6632:orf19.6165:orf19.789:orf19.5791:orf19.4826:orf19.6126:orf19.4468:orf19.440:orf19.637:orf19.1480
+PRPP-PWY	superpathway of histidine, purine and pyrimidine biosynthesis	orf19.6699:HIS5:HIS3:SNO1:HIS7:orf19.6796:HIS4:HIS1:ADE4:orf19.5159:ADE8:ADE6:ADE5,7:ADE1:ADE17:ADE12:ADE13:ADK1:orf19.7118:IMH3:GUA1:GUK1:RNR22:RNR1:RNR21:orf19.5845:ADE2:CPA1:orf19.3221:URA2:URA4:URA1:URA5:URA3:orf19.5195:YNK1:URA7:PRS5:PRS1:orf19.4611:orf19.969	orf19.6699:orf19.4177:orf19.183:orf19.2948:orf19.5505:orf19.6796:orf19.5639:orf19.4026:orf19.1233:orf19.5159:orf19.5789:orf19.6317:orf19.5061:orf19.7484:orf19.492:orf19.4827:orf19.3870:orf19.3391:orf19.7118:orf19.18:orf19.4813:orf19.1115:orf19.1868:orf19.5779:orf19.5801:orf19.5845:orf19.5906:orf19.4630:orf19.3221:orf19.2360:orf19.1977:orf19.4836:orf19.2555:orf19.1716:orf19.5195:orf19.4311:orf19.3941:orf19.2193:orf19.1575:orf19.4611:orf19.969
