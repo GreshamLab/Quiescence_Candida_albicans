@@ -1,0 +1,7 @@
+name,viability,growth
+Ozan_Exp+Qui_SuppFigure16-Exponential-100__ALIVE.fcs,100,Exponential
+Ozan_Exp+Qui_SuppFigure16-Exponential-50__ALIVE.fcs,50,Exponential
+Ozan_Exp+Qui_SuppFigure16-Exponential-DEAD.fcs,0,Exponential
+Ozan_Exp+Qui_SuppFigure16-Quiescent-YPD-100__ALIVE.fcs,100,Quiescent
+Ozan_Exp+Qui_SuppFigure16-Quiescent-YPD-50__ALIVE.fcs,50,Quiescent
+Ozan_Exp+Qui_SuppFigure16-Quiescent-YPD-DEAD.fcs,0,Quiescent

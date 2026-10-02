@@ -1,0 +1,238 @@
+---
+title: "Supplementary Figure 14: PI/SYTO9 viability controls with heat-killed cells"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+  fcs_dir: "FCS_files"
+  version_name: "OzanImir_20250918_v2"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 6, fig.height = 5)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tibble)
+  library(ggplot2)
+})
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(f) file.path(params$data_dir, f)
+out_path <- function(...) file.path(params$out_dir, ...)
+```
+
+## Figure legend
+
+**Supplementary Figure 14. Validation of PI/SYTO9 staining and flow cytometry to measure viability
+of proliferative and quiescent cells.** In each panel the distribution of PI (left panel), SYTO9
+(middle panel) and the scatter plot of PI versus SYTO9 used to define flow cytometry gates is
+displayed for A) untreated proliferative cells grown (100% viability expected), B) a 50:50 mixture of
+untreated cells and cells exposed to 68℃ for 1 hour (50% viability expected) C) cells exposed to 68℃
+for 1 hour (100% inviability expected) D) untreated quiescent cells (100% viability expected), E) a
+50:50 mixture of untreated quiescent cells and quiescent cells exposed to 68℃ for 1 hour (50%
+viability expected), and F) quiescent cells exposed to 68℃ for 1 hour (100% inviability expected).
+For the experiment, all cells were grown in rich media.
+
+## Input data
+
+Raw FCS files are **not distributed**. The gating section documents how the figure panels were made
+from FCS with CytoExploreR and is not evaluated. The summary section runs from values in this file.
+
+| File | Description |
+|---|---|
+| `data/Vignette-Experiment-Details.csv` | CytoExploreR experiment details: FCS file name, expected viability (100/50/0), growth phase |
+| `data/sample_sheet_vignette_simple.csv` | Sample sheet merged into the experiment details |
+| `data/Vignette-Experiment-Markers.csv` | Channel/marker table (B12-A = SYTO9, YG4-A = PI) |
+| `data/cytek_gating_OzanImir_20250918_v2.csv` | Gating template used (`version_name`); contains the Live_cells and Dead_cells gates only |
+| `data/cytek_gating_OzanImir_20250918_v1.csv` | Earlier template; contains the Cells and Single_cells gates that v2's gates use as parent |
+
+```{r experiment-details}
+read.csv(data_path("Vignette-Experiment-Details.csv"))
+```
+
+## Gating from FCS (not evaluated; FCS not distributed)
+
+Panels A–F correspond to the six FCS files in the order of `Vignette-Experiment-Details.csv`
+(Exponential 100/50/0 % alive, then Quiescent 100/50/0 % alive). Channels: PI = YG4-A,
+SYTO9 = B12-A.
+
+```{r gating-libraries, eval = FALSE}
+library(cowplot)
+library(flowCore)
+library(flowWorkspace)
+library(openCyto)
+library(CytoExploreR)
+library(tidyverse)
+```
+
+Load the FCS files as a gating set (expects the FCS files in `params$fcs_dir`) and attach the
+experiment details. The merge of the sample sheet into the experiment details was done once.
+
+```{r gating-load, eval = FALSE}
+my_gating_set <- cyto_setup(path = params$fcs_dir, restrict = TRUE, select = "fcs",
+                            details = data_path("Vignette-Experiment-Details.csv"),
+                            markers = data_path("Vignette-Experiment-Markers.csv"))
+
+# One-time merge of the auto-generated experiment details with the sample sheet
+# exp_details <- read_csv(data_path("Vignette-Experiment-Details.csv"))
+# sample_sheet <- read_csv(data_path("sample_sheet_vignette_simple.csv"))
+# left_join(exp_details, sample_sheet) %>% write_csv(data_path("Vignette-Experiment-Details.csv"))
+
+cyto_details(my_gating_set)
+```
+
+Arcsinh transforms (cofactor 150 for SYTO9 and PI, 500 for FSC/SSC):
+
+```{r gating-transform, eval = FALSE}
+SYTO9_trans <- cyto_transformer_arcsinh(my_gating_set, channels = c("B12-A"), cofactor = 150)
+PI_trans <- cyto_transformer_arcsinh(my_gating_set, channels = c("YG4-A"), cofactor = 150)
+FSC_SSC_trans <- cyto_transformer_arcsinh(my_gating_set,
+                                          channels = c("FSC-A", "FSC-H", "SSC-A", "SSC-H"),
+                                          cofactor = 500)
+combined_trans <- cyto_transformer_combine(SYTO9_trans, PI_trans, FSC_SSC_trans)
+transformed_gating_set <- cyto_transform(my_gating_set, trans = combined_trans)
+```
+
+Apply the gating template (gates were originally drawn interactively with `cyto_gate_draw()`:
+Cells on FSC-A/SSC-A, Single_cells on SSC-A/SSC-H, then Live_cells and Dead_cells on YG4-A/B12-A).
+Note: the v2 template holds only Live_cells and Dead_cells (parent `Single_cells`); the Cells and
+Single_cells gates are in the v1 template.
+
+```{r gating-apply, eval = FALSE}
+cyto_gatingTemplate_apply(transformed_gating_set,
+                          gatingTemplate = data_path(paste0("cytek_gating_", params$version_name, ".csv")))
+```
+
+PI and SYTO9 histograms (left and middle panels), one row per sample, labelled A–F:
+
+```{r gating-histograms, eval = FALSE}
+theme_set(theme_cowplot())
+gs <- transformed_gating_set
+rows_per_page <- 6L
+
+get_df <- function(gs, i, chans = c("YG4-A", "B12-A")) {
+  cf <- gh_pop_get_data(gs[[i]], "root", inverse.transform = TRUE)
+  ff <- cytoframe_to_flowFrame(cf)
+  m <- exprs(ff)
+  df <- as.data.frame(m[, chans, drop = FALSE], check.names = FALSE)
+  names(df) <- chans
+  df$PI <- df[[chans[1]]]
+  df$SYTO9 <- df[[chans[2]]]
+  df
+}
+
+# log10 histogram when positive values exist, otherwise linear
+plot_hist_log_if_positive <- function(df, var, xlabel) {
+  x_max <- 1e6
+  if (any(df[[var]] > 0, na.rm = TRUE)) {
+    df_plot <- df[df[[var]] > 0 & is.finite(df[[var]]), , drop = FALSE]
+    ggplot(df_plot, aes_string(var)) +
+      geom_histogram(bins = 300, fill = "steelblue", color = "black", alpha = 0.6) +
+      scale_x_log10(limits = c(1, x_max)) +
+      ggplot2::annotation_logticks(sides = "b") +
+      coord_cartesian(xlim = c(1, x_max)) +
+      labs(x = xlabel, y = "Count")
+  } else {
+    ggplot(df, aes_string(var)) +
+      geom_histogram(bins = 300, fill = "steelblue", color = "black", alpha = 0.6) +
+      coord_cartesian(xlim = c(0, x_max)) +
+      labs(x = xlabel, y = "Count")
+  }
+}
+
+n_samples <- length(gs)
+n_pages <- ceiling(n_samples / rows_per_page)
+
+for (page in seq_len(n_pages)) {
+  idx <- ((page - 1) * rows_per_page + 1):min(page * rows_per_page, n_samples)
+  row_plots <- vector("list", length(idx))
+  for (k in seq_along(idx)) {
+    i <- idx[k]
+    df <- get_df(gs, i, c("YG4-A", "B12-A"))
+    p_pi <- plot_hist_log_if_positive(df, "PI", "PI")
+    p_sy <- plot_hist_log_if_positive(df, "SYTO9", "SYTO9")
+    row_core <- plot_grid(p_pi, p_sy, ncol = 2, align = "hv", axis = "tblr")
+    row_plots[[k]] <- plot_grid(row_core, labels = LETTERS[k], label_size = 18,
+                                label_fontface = "bold", label_x = 0, hjust = 0)
+  }
+  grid_2x6 <- plot_grid(plotlist = row_plots, ncol = 1)
+  ggsave(filename = out_path(sprintf("PI_SYTO9_grid_2x6_p%02d.pdf", page)),
+         plot = grid_2x6, device = grDevices::pdf,
+         width = 10.5, height = 18, units = "in", useDingbats = FALSE)
+}
+```
+
+Gated PI x SYTO9 scatter plots with Live_cells / Dead_cells percentages (right panels):
+
+```{r gating-scatter, eval = FALSE}
+save_gating_png <- function(gs, samp, outfile) {
+  grDevices::png(filename = outfile, width = 6, height = 4, units = "in", res = 300)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  cyto_plot(gs, parent = "Single_cells", channels = c("YG4-A", "B12-A"),
+            axes_limits = "data", xlab = "PI", ylab = "SYTO9", alias = "")
+}
+
+for (i in seq_along(transformed_gating_set)) {
+  samp <- flowWorkspace::sampleNames(transformed_gating_set)[i]
+  outfile <- out_path(sprintf("PI_SYTO9_gating_%s.png", samp))
+  try(save_gating_png(transformed_gating_set[i], samp, outfile), silent = TRUE)
+}
+```
+
+## Expected vs measured viability
+
+Measured % live values were typed in from the gating of the heat-killing experiment
+(original script `HeatKilling_Quantification.R`).
+
+```{r quantification-data}
+data <- tribble(
+  ~Condition,       ~Group,        ~Expected_Live, ~Measured_Live,
+  "Proliferative",  "100/0",       100,            95.40,
+  "Proliferative",  "0/100",       0,              3.91,
+  "Proliferative",  "50/50",       50,             44.44,
+  "Quiescent",      "100/0",       100,            97.76,
+  "Quiescent",      "0/100",       0,              1.70,
+  "Quiescent",      "50/50",       50,             50.47
+) %>%
+  mutate(
+    Expected_Dead = 100 - Expected_Live,
+    Measured_Dead = 100 - Measured_Live
+  )
+data
+```
+
+```{r plot-live, fig.width = 6, fig.height = 5}
+plot_live <- ggplot(data, aes(x = Expected_Live, y = Measured_Live, color = Condition)) +
+  geom_point(size = 4) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  theme_minimal(base_size = 14) +
+  scale_color_manual(values = c("Proliferative" = "#F2766F", "Quiescent" = "#24BCBE"))
+plot_live
+
+ggsave(out_path("percent_viability_live.png"), plot_live, width = 6, height = 5, dpi = 300)
+ggsave(out_path("percent_viability_live.pdf"), plot_live, width = 6, height = 5)
+```
+
+```{r plot-dead, fig.width = 6, fig.height = 5}
+plot_dead <- ggplot(data, aes(x = Expected_Dead, y = Measured_Dead, color = Condition)) +
+  geom_point(size = 4) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  theme_minimal(base_size = 14) +
+  scale_color_manual(values = c("Proliferative" = "#F2766F", "Quiescent" = "#24BCBE"))
+plot_dead
+
+ggsave(out_path("percent_viability_dead.png"), plot_dead, width = 6, height = 5, dpi = 300)
+ggsave(out_path("percent_viability_dead.pdf"), plot_dead, width = 6, height = 5)
+```
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

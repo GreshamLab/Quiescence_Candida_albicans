@@ -1,0 +1,269 @@
+---
+title: "Figure 1: Growth and residual glucose over time in rich and minimal media"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+  cycles: 1000
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(readxl)
+  library(patchwork)
+})
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(f) file.path(params$data_dir, f)
+out_path <- function(...) file.path(params$out_dir, ...)
+```
+
+## Figure legend
+
+**Figure 1 (current figure panels C and D; not described in the legend document, whose panel B
+describes the earlier minimal-media growth curves at several glucose concentrations).**
+Population growth (OD at 600nm, left axis, dark red) and residual glucose in the medium (mM,
+right axis, gold) over time for *C. albicans* SC5314 grown in rich media (C) and minimal media
+(D). Mean ± SD.
+
+## Input data
+
+| File | Description |
+|---|---|
+| `Resubmission_GrowthOD_combined.csv` | Spark plate-reader export, rich-media endpoint OD600 at 0, 6, 24 and 72 h (triplicate columns 1–3, 4–6, 7–9, 10–12); row A = WT SC5314, row G = rich-media blank |
+| `20220808_candida_NCs_starve_growth_assay.csv` | Tecan continuous OD600 time course (1000 cycles, ~96 h) of minimal media with varying glucose / nitrogen; one column per well, time in seconds |
+| `quiescence_nit+glu_OBI_samplesheet.csv` | Plate layout for the Tecan time course (Well, Sample, Bio_rep, Tech_rep, groups, `C_only`, `N_only`) |
+| `Resubmission_GlucoseAssay_Repeat.xlsx` | Glucose assay plate-reader export (absorbance) of culture supernatants at 2, 5, 8, 11, 24, 48, 72 h plus 0/90/180/300 µM standards |
+| `glucose_assay_sample_sheet.csv` | Plate layout of the glucose assay (Well, Sample_name, Type, Media, Time, Repeat); wells not listed are unused background wells |
+
+Processing:
+
+* *Rich-media OD*: WT SC5314 (row A); the row-G blank is subtracted per time point; 24 h
+  readings are multiplied by 2 and 72 h readings by 4 (dilution before reading); negative values
+  clipped to zero.
+* *Minimal-media OD*: Tecan time course with outlier wells D2, E2, B6, C6 and D6 removed,
+  0.1% glucose condition (`C_only == 2`, samples WT1_8X_C / WT2_8X_C). Mean OD at the cycle
+  closest to each of 2, 5, 8, 11, 24, 48 and 72 h; not blank-subtracted.
+* *Residual glucose*: plate background = mean of unused wells; standard curve through the origin;
+  wells at or below background or below the LOQ (15 × SD of background wells) set to 0 µM;
+  well E1 (Minimal 72 h, replicate 2) excluded as a pipetting artefact; dilution factors 4000×
+  (rich) and 100× (minimal); 50%-of-median per-group QC gate.
+
+## Minimal-media OD time course
+
+```{r tecan}
+samplesheet <- read_csv(data_path("quiescence_nit+glu_OBI_samplesheet.csv"))
+
+# time from seconds to hours
+data_od <- read_csv(data_path("20220808_candida_NCs_starve_growth_assay.csv"),
+                    skip = 0, n_max = params$cycles)
+colnames(data_od)[1] <- "time"
+data_od$time <- as.numeric(str_remove(data_od$time, "s")) / 60 / 60
+data_od <- data_od[, -98]
+
+# outlier wells
+outlier_wells <- c("D2", "E2", "B6", "C6", "D6")
+data_od <- data_od %>% select(-all_of(outlier_wells))
+```
+
+## Residual glucose
+
+```{r glucose}
+fig1b_times <- c(2, 5, 8, 11, 24, 48, 72)
+
+glc_sample_sheet <- read_csv(data_path("glucose_assay_sample_sheet.csv"))
+
+raw_glc <- read_excel(data_path("Resubmission_GlucoseAssay_Repeat.xlsx"),
+                      col_names = FALSE, .name_repair = "minimal")
+glc_header_row <- which(raw_glc[[1]] == "<>")[1]
+glc_plate <- raw_glc[(glc_header_row + 1):(glc_header_row + 8), 1:13]
+colnames(glc_plate) <- c("Row", as.character(1:12))
+
+glc_wells <- glc_plate %>%
+  pivot_longer(cols = -Row, names_to = "Col", values_to = "Absorbance") %>%
+  mutate(Well = paste0(Row, Col), Absorbance = as.numeric(Absorbance)) %>%
+  select(Well, Absorbance) %>%
+  left_join(glc_sample_sheet, by = "Well")
+
+# plate background = mean of wells not present in the sample sheet
+glc_background <- glc_wells %>%
+  filter(is.na(Sample_name)) %>%
+  summarise(background = mean(Absorbance)) %>%
+  pull(background)
+
+glc_wells <- glc_wells %>%
+  mutate(Absorbance_corrected = Absorbance - glc_background)
+
+# standard curve constrained through the origin
+glc_standards <- glc_wells %>%
+  filter(Type == "Standard") %>%
+  mutate(Conc_uM = as.numeric(str_extract(Sample_name, "[0-9]+")))
+
+glc_std_fit <- lm(Absorbance_corrected ~ 0 + Conc_uM, data = glc_standards)
+glc_slope   <- unname(coef(glc_std_fit)[["Conc_uM"]])
+
+# limit of quantification in corrected-absorbance space (15 x SD of background wells)
+glc_bg_wells <- glc_wells %>% filter(is.na(Sample_name))
+glc_loq_abs  <- 15 * sd(glc_bg_wells$Absorbance_corrected)
+
+glucose_ts <- glc_wells %>%
+  filter(Type == "Experimental") %>%
+  mutate(
+    Media      = factor(Media, levels = c("Rich", "Minimal")),
+    Dilution   = if_else(Media == "Rich", 4000, 100),
+    Glucose_uM = (Absorbance_corrected / glc_slope) * Dilution,
+    Glucose_uM = if_else(Absorbance_corrected <= 0 |
+                           Absorbance_corrected <= glc_loq_abs, 0,
+                         pmax(Glucose_uM, 0)),
+    Time       = as.numeric(Time)
+  ) %>%
+  # 50%-of-median QC gate
+  group_by(Media, Time) %>%
+  mutate(Group_median = median(Glucose_uM),
+         Outlier      = Group_median != 0 &
+           abs(Glucose_uM - Group_median) / abs(Group_median) > 0.5) %>%
+  ungroup()
+
+# well E1 (Minimal 72 h, replicate 2): pipetting artefact
+glucose_ts <- glucose_ts %>% filter(Well != "E1")
+
+glucose_ts %>%
+  filter(Outlier) %>%
+  select(Well, Sample_name, Media, Time, Glucose_uM, Group_median) %>%
+  knitr::kable(digits = 0,
+               caption = "Glucose-assay wells removed by the 50%-of-median QC gate")
+
+glucose_summary <- glucose_ts %>%
+  filter(!Outlier) %>%
+  group_by(Media, Time) %>%
+  summarise(mean_mM = mean(Glucose_uM) / 1000,
+            sd_mM   = sd(Glucose_uM) / 1000,
+            n       = n(), .groups = "drop") %>%
+  rename(time_h = Time)
+
+knitr::kable(glucose_summary, digits = 3,
+             caption = "Residual glucose (mM, dilution-corrected) per time point")
+```
+
+## Rich-media OD
+
+```{r rich-od}
+rich_lines <- readLines(data_path("Resubmission_GrowthOD_combined.csv"))
+rich_hdr   <- grep("^<>,", rich_lines)
+rich_raw   <- read.csv(text = rich_lines[rich_hdr:(rich_hdr + 8)],
+                       check.names = FALSE, strip.white = TRUE)
+rich_plate <- as.matrix(rich_raw[, -1])
+rownames(rich_plate) <- trimws(rich_raw[[1]])
+storage.mode(rich_plate) <- "double"
+
+# triplicate columns per time point
+rich_time_map <- list(`0` = 1:3, `6` = 4:6, `24` = 7:9, `72` = 10:12)
+
+rich_od <- bind_rows(lapply(names(rich_time_map), function(tt) {
+  cols     <- rich_time_map[[tt]]
+  t        <- as.numeric(tt)
+  blank_mu <- mean(rich_plate["G", cols])  # row G = rich-media blank
+  dil      <- ifelse(t == 72, 4, ifelse(t == 24, 2, 1))
+  corr     <- pmax((rich_plate["A", cols] - blank_mu) * dil, 0)  # row A = WT
+  data.frame(time_h = t, od = corr)
+})) %>%
+  group_by(time_h) %>%
+  summarise(mean_od = mean(od), sd_od = sd(od), n = n(), .groups = "drop")
+
+knitr::kable(rich_od, digits = 3,
+             caption = "Rich-media WT SC5314 OD600 (blank- and dilution-corrected)")
+```
+
+## Minimal-media OD at the assay time points
+
+```{r minimal-od}
+minimal_od_full <- data_od %>%
+  pivot_longer(cols = -time, names_to = "well", values_to = "od") %>%
+  left_join(samplesheet, by = c("well" = "Well")) %>%
+  filter(C_only == 2) %>%          # 0.1% glucose minimal media (8X_C)
+  group_by(time) %>%
+  summarise(mean_od = mean(od), sd_od = sd(od), n = n(), .groups = "drop")
+
+# measurement cycle closest to each target time point
+minimal_od <- fig1b_times %>%
+  map_dfr(~ minimal_od_full %>%
+            slice_min(abs(time - .x), n = 1, with_ties = FALSE) %>%
+            transmute(time_h = .x, time_measured = time, mean_od, sd_od, n))
+
+knitr::kable(minimal_od, digits = 3,
+             caption = "Minimal-media OD600 at the assay time points (0.1% glucose)")
+```
+
+## Plot
+
+Each panel uses a secondary y-axis: glucose is divided by a per-panel scaling factor so it shares
+the grid with OD, and the right-hand axis recovers glucose units.
+
+```{r plot, fig.width=11, fig.height=5}
+fig1b_od_color  <- "#7B0D1E"  # dark red
+fig1b_glc_color <- "#D97706"  # gold
+
+make_fig1b_panel <- function(od_df, glc_df, media_label) {
+  od_max  <- max(od_df$mean_od + od_df$sd_od, na.rm = TRUE)
+  glc_max <- max(glc_df$mean_mM + glc_df$sd_mM, na.rm = TRUE)
+  y_od    <- od_max * 1.12               # top of the OD (left) axis
+  f       <- (glc_max * 1.12) / y_od     # glucose (mM) -> OD scale factor
+
+  ggplot() +
+    geom_line(data = glc_df, aes(time_h, mean_mM / f),
+              color = fig1b_glc_color, linewidth = 1.1) +
+    geom_errorbar(data = glc_df,
+                  aes(time_h, ymin = (mean_mM - sd_mM) / f,
+                      ymax = (mean_mM + sd_mM) / f),
+                  color = fig1b_glc_color, width = 2.5, linewidth = 0.7) +
+    geom_point(data = glc_df, aes(time_h, mean_mM / f),
+               color = fig1b_glc_color, size = 2.6) +
+    geom_line(data = od_df, aes(time_h, mean_od),
+              color = fig1b_od_color, linewidth = 1.1) +
+    geom_errorbar(data = od_df,
+                  aes(time_h, ymin = mean_od - sd_od, ymax = mean_od + sd_od),
+                  color = fig1b_od_color, width = 2.5, linewidth = 0.7) +
+    geom_point(data = od_df, aes(time_h, mean_od),
+               color = fig1b_od_color, size = 2.6) +
+    scale_x_continuous(breaks = c(0, 12, 24, 36, 48, 60, 72)) +
+    scale_y_continuous(
+      limits = c(0, y_od),
+      sec.axis = sec_axis(~ . * f, name = "Residual glucose (mM)")
+    ) +
+    labs(title = paste(media_label, "media"), x = "Time (hours)", y = "OD600") +
+    theme_gray(base_size = 12) +
+    theme(title = element_text(color = "black", size = 12, face = "bold"),
+          axis.title.x = element_text(color = "black", size = 10, face = "bold"),
+          axis.title.y = element_text(color = fig1b_od_color, size = 10,
+                                      face = "bold"),
+          axis.title.y.right = element_text(color = fig1b_glc_color, size = 10,
+                                            face = "bold"))
+}
+
+p_rich    <- make_fig1b_panel(rich_od,
+                              filter(glucose_summary, Media == "Rich"), "Rich")
+p_minimal <- make_fig1b_panel(minimal_od,
+                              filter(glucose_summary, Media == "Minimal"),
+                              "Minimal")
+
+fig_growth <- p_rich | p_minimal
+fig_growth
+
+ggsave(out_path("Figure_1_growth_and_residual_glucose.png"), fig_growth,
+       width = 11, height = 5, dpi = 300)
+ggsave(out_path("Figure_1_growth_and_residual_glucose.pdf"), fig_growth,
+       width = 11, height = 5)
+```
+
+## Session info
+
+```{r session}
+sessionInfo()
+```

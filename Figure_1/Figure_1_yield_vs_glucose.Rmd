@@ -1,0 +1,168 @@
+---
+title: "Figure 1: Final yield versus initial glucose concentration in rich media"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+suppressPackageStartupMessages({
+  library(readxl)
+  library(ggplot2)
+})
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(f) file.path(params$data_dir, f)
+out_path <- function(...) file.path(params$out_dir, ...)
+```
+
+## Figure legend
+
+**Figure 1C (legend lettering; panel A in the current figure).** Final population yield (OD at
+600nm) versus initial glucose concentration for rich media. The line indicates a linear model
+fit to the data. The dashed circle indicates the concentration of glucose used in rich media for
+all subsequent experiments.
+
+## Input data
+
+| File | Description |
+|---|---|
+| `Resubmission_GlucoseConcOD.xlsx` | Plate-reader endpoint OD600 export of SC5314 grown in rich media with 4%, 2%, 1% and 0.5% glucose (plate rows A–D, columns 9–12 = 4 biological replicates); row E = cell-free medium blank; rows F–H not part of this design |
+
+Corrections: the mean of the four blank wells (row E) is subtracted from every reading (negative
+values clipped to zero) and the result is multiplied by the dilution factor of the sample before
+reading (`c(5, 10, 10, 10)` for 4%, 2%, 1%, 0.5% glucose). Glucose % (w/v) is converted to molar
+as M = % × 10 / 180.16.
+
+## Parse plate
+
+```{r parse}
+raw <- as.data.frame(read_excel(data_path("Resubmission_GlucoseConcOD.xlsx"),
+                                sheet = 1, col_names = FALSE),
+                     stringsAsFactors = FALSE)
+
+hdr <- which(trimws(raw[[1]]) == "<>")
+stopifnot("could not locate the '<>' plate header row" = length(hdr) == 1)
+
+block      <- raw[(hdr + 1):(hdr + 8), ]           # plate rows A-H
+row_labels <- trimws(block[[1]])
+vals       <- block[, -1, drop = FALSE]
+vals       <- vals[, colSums(!is.na(vals)) > 0, drop = FALSE]  # measured cols
+plate      <- as.matrix(data.frame(lapply(vals, as.numeric),
+                                 check.names = FALSE))
+rownames(plate) <- row_labels
+colnames(plate) <- paste0("Rep", seq_len(ncol(plate)))
+
+knitr::kable(plate, caption = "Raw OD600 readings (plate rows A-H, 4 replicates)")
+```
+
+## Blank and dilution correction
+
+```{r correct}
+row_info <- data.frame(
+  row       = c("A", "B", "C", "D", "E"),
+  glucose   = c(4, 2, 1, 0.5, NA),            # % glucose; NA = no cells
+  dilution  = c(5, 10, 10, 10, 1),            # dilution factor before reading
+  condition = c("4% glucose", "2% glucose", "1% glucose",
+                "0.5% glucose", "Cell-free control"),
+  role      = c(rep("sample", 4), "blank"),
+  stringsAsFactors = FALSE)
+
+blank_mu <- mean(plate["E", ])                 # cell-free control mean
+
+samples <- row_info[row_info$role == "sample", ]
+long_df <- do.call(rbind, lapply(seq_len(nrow(samples)), function(i) {
+  r <- samples$row[i]
+  data.frame(
+    glucose      = samples$glucose[i],
+    dilution     = samples$dilution[i],
+    replicate    = colnames(plate),
+    OD_raw       = as.numeric(plate[r, ]),
+    OD_corrected = pmax(as.numeric(plate[r, ]) - blank_mu, 0) *
+                     samples$dilution[i],
+    stringsAsFactors = FALSE)
+}))
+
+cat(sprintf("Blank (cell-free control, row E) mean OD600 = %.4f\n", blank_mu))
+
+sum_df <- do.call(rbind, lapply(split(long_df, long_df$glucose), function(d) {
+  data.frame(
+    `Glucose (%)`       = d$glucose[1],
+    `Dilution factor`   = d$dilution[1],
+    `Mean raw OD`       = mean(d$OD_raw),
+    `Mean corrected OD` = mean(d$OD_corrected),
+    `SD corrected OD`   = sd(d$OD_corrected),
+    n                   = nrow(d),
+    check.names         = FALSE)
+}))
+sum_df <- sum_df[order(-sum_df$`Glucose (%)`), ]
+knitr::kable(sum_df, row.names = FALSE, digits = 4,
+             caption = "Blank- and dilution-corrected OD600 (n = 4)")
+```
+
+## Linear model
+
+```{r fit}
+MW_GLUCOSE        <- 180.16
+long_df$glucose_M <- long_df$glucose * 10 / MW_GLUCOSE
+
+fit <- lm(OD_corrected ~ glucose_M, data = long_df)
+b0  <- coef(fit)[1]   # intercept
+b1  <- coef(fit)[2]   # slope (OD600 per M glucose)
+r2  <- summary(fit)$r.squared
+p_val <- summary(fit)$coefficients[2, 4]
+
+cat(sprintf("Slope:     %.4f OD600 per M glucose\n", b1))
+cat(sprintf("R-squared: %.4f\n", r2))
+cat(sprintf("p-value:   %.3e\n", p_val))
+```
+
+## Plot
+
+```{r plot, fig.width=7, fig.height=5}
+pt_color <- "#E69F00"
+
+# fixed x-offsets so the 4 replicates are distinguishable
+long_df$x_offset <- (as.integer(factor(long_df$replicate)) - 2.5) * 0.0003
+
+p_glc <- ggplot(long_df, aes(glucose_M + x_offset, OD_corrected)) +
+  geom_segment(aes(x = min(glucose_M), xend = max(glucose_M),
+                   y = b0 + b1 * min(glucose_M),
+                   yend = b0 + b1 * max(glucose_M)),
+               linewidth = 1.0, colour = "black",
+               inherit.aes = FALSE) +
+  geom_point(size = 2.5, colour = pt_color, shape = 16) +
+  scale_x_continuous(
+    breaks = c(0.5, 1, 2, 4) * 10 / MW_GLUCOSE,
+    labels = scales::number_format(accuracy = 0.001)) +
+  coord_cartesian(xlim = c(0.5 * 10 / MW_GLUCOSE * 0.85,
+                           4.0 * 10 / MW_GLUCOSE * 1.03)) +
+  labs(title = "SC5314 endpoint OD600 across glucose concentrations",
+       x = "[Glucose] (M)",
+       y = "OD600 (blank- and dilution-corrected)") +
+  theme_bw(base_size = 13) +
+  theme(
+    panel.border      = element_blank(),
+    panel.background  = element_rect(fill = "grey92", colour = NA),
+    panel.grid.major  = element_line(colour = "white", linewidth = 0.5),
+    panel.grid.minor  = element_blank(),
+    axis.line         = element_line(colour = "black")
+  )
+
+p_glc
+ggsave(out_path("Figure_1_yield_vs_glucose_rich.png"), p_glc, width = 7, height = 5, dpi = 300)
+ggsave(out_path("Figure_1_yield_vs_glucose_rich.pdf"), p_glc, width = 7, height = 5)
+```
+
+## Session info
+
+```{r session}
+sessionInfo()
+```

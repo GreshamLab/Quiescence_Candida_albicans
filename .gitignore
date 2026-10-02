@@ -1,0 +1,13 @@
+# Rendered reports and generated outputs
+output/
+*.html
+*.nb.html
+
+# R / RStudio
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# macOS
+.DS_Store

@@ -1,0 +1,103 @@
+---
+title: "Figure 5: Micafungin dose response of clinical isolates p37005 and p57055"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 7, fig.height = 7)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(ggplot2)
+})
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(f) file.path(params$data_dir, f)
+out_path <- function(...) file.path(params$out_dir, ...)
+```
+
+## Figure legend
+
+**Figure 5. Quiescent cells exhibit increased survival when treated with antifungals.**
+B) Viability of proliferative and quiescent cells using clinically isolates p57055 and p37005 at
+of 0.001 µg/mL to 10 µg/mL micafungin.
+
+Viability is the fraction of PI/SYTO9-gated events that are live, Live% / (Live% + Dead%), for each
+well of the 20-isolate micafungin plates (one well per isolate and dose). In the screen,
+p37005 is `Sample1` (solid line) and p57055 is `Sample17` (dashed line).
+
+## Input data
+
+All inputs are in `data/`. Each row is one well (gated Live/Dead percentages exported from the
+Cytek gating of the full screen; raw FCS files are not distributed).
+
+| File | Description |
+|---|---|
+| `Isolates_Micafungin_Exponential_1-10.CSV` | Proliferative cultures, isolates Sample1–Sample10, micafungin 0 (Blank) to 10 µg/mL |
+| `Isolates_Micafungin_Exponential_11-20.CSV` | Proliferative cultures, isolates Sample11–Sample20 |
+| `Isolates_Micafungin_Quiescent_1-10.CSV` | Quiescent cultures, isolates Sample1–Sample10 |
+| `Isolates_Micafungin_Quiescent_11-20.CSV` | Quiescent cultures, isolates Sample11–Sample20 |
+
+## Data preparation
+
+```{r load-data}
+files <- c("Isolates_Micafungin_Exponential_1-10.CSV", "Isolates_Micafungin_Exponential_11-20.CSV",
+           "Isolates_Micafungin_Quiescent_1-10.CSV", "Isolates_Micafungin_Quiescent_11-20.CSV")
+combined_data_clean <- do.call(rbind, lapply(data_path(files), read.csv,
+                                             fileEncoding = "UTF-8-BOM"))
+
+# Viability = Live / (Live + Dead)
+combined_data_clean$Live_Dead_ratio <- with(combined_data_clean,
+                                            Live_percent / (Live_percent + Dead_percent))
+
+table(combined_data_clean$Growth, combined_data_clean$Dose)
+```
+
+## Micafungin response of p37005 (Sample1) and p57055 (Sample17)
+
+```{r subset}
+subset_data <- subset(combined_data_clean,
+                      Sample %in% c("Sample1", "Sample17") & Treatment == "Micafungin")
+
+# Untreated wells (Dose 0) fall outside the log10 axis and are not plotted
+subset_data <- subset(subset_data, Dose > 0)
+
+subset_data %>%
+  arrange(Sample, Growth, Dose) %>%
+  select(Sample, Growth, Dose, Live_percent, Dead_percent, Live_Dead_ratio)
+```
+
+```{r plot-micafungin, fig.width = 7, fig.height = 7}
+custom_labels <- c("-3", "-2", "-1", "0", "1")
+custom_breaks <- c(0.001, 0.01, 0.1, 1, 10)
+
+p <- ggplot(subset_data, aes(x = Dose, y = Live_Dead_ratio, color = Growth, linetype = Sample)) +
+  geom_line() +
+  geom_point(size = 3) +
+  scale_x_log10(labels = custom_labels, breaks = custom_breaks, limits = c(0.00001, 11)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_linetype_manual(values = c("Sample1" = "solid", "Sample17" = "dashed"),
+                        labels = c("Sample1" = "p37005 (Sample1)", "Sample17" = "p57055 (Sample17)")) +
+  labs(x = "log10(Drug Concentration)(ug/mL)",
+       y = "Viability") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+p
+
+ggsave(out_path("Figure_5_micafungin_p37005_p57055.png"), p, width = 7, height = 7, dpi = 300)
+ggsave(out_path("Figure_5_micafungin_p37005_p57055.pdf"), p, width = 7, height = 7)
+```
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

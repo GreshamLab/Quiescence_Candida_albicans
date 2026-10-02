@@ -1,0 +1,298 @@
+---
+title: "Figure 6: Micafungin sensitivity of proliferative TF KOs"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+  version_name: "OzanImir_20260809_v1"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(cowplot)
+})
+set.seed(1)
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(...) file.path(params$data_dir, "flow_micafungin_proliferative", ...)
+out_path <- function(...) file.path(params$out_dir, ...)
+version_name <- params$version_name
+```
+
+## Figure legend
+
+**Figure 6. Transcriptional regulation of quiescence.** Viability of proliferative TF KOs after
+micafungin treatment, normalized to untreated controls (panel C in the current figure draft;
+not described in the legend).
+
+Wild type (WT, SC5314), the parental background strain of the KO collection (BG) and the
+knockouts of NRG1 (NRG, orf19.7150), NDT80 (NDT, orf19.2119) and STP4 (STP, orf19.909) were grown
+exponentially in rich media, treated with micafungin (Untreated, 0.001, 0.01, 0.1, 1 and
+10 µg/mL) in triplicate and measured by SYTO9/PI flow cytometry.
+Viability = Live cells / (Live cells + Dead cells). Each replicate is divided by the mean viability
+of that strain's untreated replicates. Bars show the mean of triplicates, error bars the standard
+error, points the individual replicates; the dashed line marks the untreated baseline. At each
+dose each KO strain is compared with WT by a two-sided paired t-test on the raw (unnormalized)
+viability (paired by replicate population, `repeat`), Holm-corrected within each dose (4 tests);
+Untreated is not tested.
+\* p < 0.05, \*\* p < 0.01, \*\*\* p < 0.001, \*\*\*\* p < 0.0001.
+
+## Input data
+
+All inputs are in `data/flow_micafungin_proliferative/`:
+
+| File | Description |
+|---|---|
+| `sample_sheet_vignette_simple.csv` | FCS file name, knockout, media, micafungin dose, replicate (`repeat`) and plate group (6HC, DR, ...) |
+| `Vignette-Experiment-Details.csv` | CytoExploreR experiment details (sample sheet joined to file names) |
+| `Vignette-Experiment-Markers.csv` | CytoExploreR channel/marker table (SYTO9 B7-A, PI YG4-A) |
+| `cytek_gating_OzanImir_20260809_v1.csv` | CytoExploreR gating template (Cells, Single_cells, Live_cells, Dead_cells) |
+| `viability_normalized_to_untreated_OzanImir_20260809_v1.csv` | Gated Live/Dead counts, raw and normalized viability per sample, rich media, after the untreated-control selection (90 samples) |
+| `strain_vs_WT_paired_ttest_OzanImir_20260809_v1.csv` | Original paired t-test results (used for verification only) |
+
+The raw FCS files are not distributed.
+
+## Gating (not run: requires FCS files)
+
+Gating was done with CytoExploreR on the FCS files (not distributed), using the gating template in
+`data/flow_micafungin_proliferative/`. Transforms: arcsinh, cofactor 150 for SYTO9 (B7-A) and PI
+(YG4-A), cofactor 500 for FSC/SSC. Gates: Cells (FSC-A/SSC-A) > Single_cells (SSC-A/SSC-H) >
+Live_cells and Dead_cells (YG4-A/B7-A).
+
+Untreated controls: only 6HC-group untreated samples are used, except for NRG1, whose 6HC
+untreated samples were removed from the dataset; for NRG1 every untreated sample (the DR-group
+replicates) is used. The rich-media samples, with each replicate normalized to its strain's
+untreated mean, were saved as `viability_normalized_to_untreated_OzanImir_20260809_v1.csv`.
+
+```{r gating, eval = FALSE}
+library(CytoExploreR)
+library(flowWorkspace)
+
+# FCS files are expected in data/flow_micafungin_proliferative/FCS_files (not distributed)
+my_gating_set <- cyto_setup(path = data_path("FCS_files"), restrict = TRUE, select = "fcs")
+experiment_details <- read_csv(data_path("Vignette-Experiment-Details.csv"), show_col_types = FALSE)
+for (i in seq_along(experiment_details)) {
+  pData(my_gating_set)[names(experiment_details)[i]] <- experiment_details[[i]]
+}
+
+SYTO9_trans <- cyto_transformer_arcsinh(my_gating_set, channels = c("B7-A"), cofactor = 150)
+PI_trans <- cyto_transformer_arcsinh(my_gating_set, channels = c("YG4-A"), cofactor = 150)
+FSC_SSC_trans <- cyto_transformer_arcsinh(my_gating_set,
+                                          channels = c("FSC-A", "FSC-H", "SSC-A", "SSC-H"),
+                                          cofactor = 500)
+combined_trans <- cyto_transformer_combine(SYTO9_trans, PI_trans, FSC_SSC_trans)
+transformed_gating_set <- cyto_transform(my_gating_set, trans = combined_trans)
+
+cyto_gatingTemplate_apply(transformed_gating_set,
+                          gatingTemplate = data_path(paste0("cytek_gating_", version_name, ".csv")))
+
+sample_sheet <- read_csv(data_path("sample_sheet_vignette_simple.csv"), show_col_types = FALSE)
+sample_info <- pData(transformed_gating_set) %>%
+  as.data.frame() %>%
+  as_tibble() %>%
+  mutate(sample_name = sampleNames(transformed_gating_set))
+if (!"name" %in% names(sample_info)) {
+  sample_info <- sample_info %>% mutate(name = basename(sample_name))
+}
+sample_info <- sample_info %>%
+  select(sample_name, name) %>%
+  left_join(sample_sheet, by = "name")
+
+pop_counts <- gs_pop_get_stats(transformed_gating_set, path = "auto") %>%
+  as_tibble() %>%
+  rename(sample_name = sample, population = pop, cell_count = count) %>%
+  mutate(population = sub(".*/", "", population)) %>%
+  filter(population %in% c("Live_cells", "Dead_cells")) %>%
+  select(sample_name, population, cell_count) %>%
+  pivot_wider(names_from = population, values_from = cell_count,
+              values_fill = list(cell_count = 0))
+
+viability_df <- pop_counts %>%
+  left_join(sample_info, by = "sample_name") %>%
+  mutate(strain = dplyr::recode(knockout, "WT" = "WT", "BG" = "BG", "NRG1" = "NRG",
+                                "NDT80" = "NDT", "STP4" = "STP"),
+         strain = factor(strain, levels = c("WT", "BG", "NRG", "NDT", "STP")),
+         dose = factor(as.character(dose),
+                       levels = c("Untreated", "0.001", "0.01", "0.1", "1", "10")),
+         media = factor(media, levels = c("Rich", "Minimal")),
+         viability = Live_cells / (Live_cells + Dead_cells)) %>%
+  filter(!is.na(strain), !is.na(dose), !is.na(media), !is.na(viability)) %>%
+  filter(dose != "Untreated" | group == "6HC" | (strain == "NRG" & dose == "Untreated"))
+
+untreated_ref <- viability_df %>%
+  filter(dose == "Untreated") %>%
+  group_by(strain, media) %>%
+  summarise(untreated_mean = mean(viability, na.rm = TRUE), .groups = "drop")
+
+viability_df %>%
+  filter(media == "Rich") %>%
+  left_join(untreated_ref, by = c("strain", "media")) %>%
+  filter(!is.na(untreated_mean)) %>%
+  mutate(norm_viability = viability / untreated_mean) %>%
+  write_csv(data_path(paste0("viability_normalized_to_untreated_", version_name, ".csv")))
+```
+
+## Viability per replicate, normalized to untreated
+
+```{r viability}
+strain_levels <- c("WT", "BG", "NRG", "NDT", "STP")
+dose_levels <- c("Untreated", "0.001", "0.01", "0.1", "1", "10")
+
+# Untreated-control selection as in the original analysis (already applied in the shipped table):
+# 6HC-group untreated samples only, except NRG1, for which all untreated samples are used
+viability_df <- read_csv(data_path(paste0("viability_normalized_to_untreated_", version_name, ".csv")),
+                         col_types = cols(dose = col_character(), `repeat` = col_integer()),
+                         show_col_types = FALSE) %>%
+  select(-untreated_mean, -norm_viability) %>%
+  mutate(strain = factor(strain, levels = strain_levels),
+         dose = factor(dose, levels = dose_levels),
+         media = factor(media, levels = c("Rich", "Minimal")),
+         viability = Live_cells / (Live_cells + Dead_cells)) %>%
+  filter(!is.na(strain), !is.na(dose), !is.na(media), !is.na(viability)) %>%
+  filter(dose != "Untreated" | group == "6HC" | (strain == "NRG" & dose == "Untreated"))
+stopifnot(nrow(viability_df) == 90L)
+
+untreated_ref <- viability_df %>%
+  filter(dose == "Untreated") %>%
+  group_by(strain, media) %>%
+  summarise(untreated_mean = mean(viability, na.rm = TRUE), .groups = "drop")
+
+norm_df <- viability_df %>%
+  filter(media == "Rich") %>%
+  left_join(untreated_ref, by = c("strain", "media")) %>%
+  filter(!is.na(untreated_mean)) %>%
+  mutate(norm_viability = viability / untreated_mean)
+
+norm_summary <- norm_df %>%
+  group_by(strain, dose) %>%
+  summarise(n = dplyr::n(),
+            mean_norm = mean(norm_viability, na.rm = TRUE),
+            se_norm = ifelse(dplyr::n() > 1,
+                             sd(norm_viability, na.rm = TRUE) / sqrt(dplyr::n()),
+                             NA_real_),
+            .groups = "drop")
+write_csv(norm_summary, out_path("viability_normalized_summary.csv"))
+knitr::kable(norm_summary, digits = 4)
+```
+
+## Statistics: each KO strain vs WT at each dose
+
+Tests use the raw (unnormalized) viability, paired by `repeat` (replicates 1-3 come from the same
+three populations across all conditions). With n = 3 pairs a Wilcoxon signed-rank test cannot
+reach two-sided p < 0.05, so a paired t-test is used.
+
+```{r stats}
+paired_ttest_p <- function(x, y) {
+  keep <- complete.cases(x, y)
+  x <- x[keep]
+  y <- y[keep]
+  if (length(x) < 2) return(NA_real_)
+  tryCatch(t.test(x, y, paired = TRUE)$p.value, error = function(e) NA_real_)
+}
+
+p_to_stars <- function(p) {
+  dplyr::case_when(is.na(p) ~ NA_character_,
+                   p < 0.0001 ~ "****",
+                   p < 0.001 ~ "***",
+                   p < 0.01 ~ "**",
+                   p < 0.05 ~ "*")
+}
+
+wt_rich <- viability_df %>%
+  filter(media == "Rich", strain == "WT") %>%
+  select(dose, `repeat`, wt_viability = viability)
+
+strain_stats <- viability_df %>%
+  filter(media == "Rich", strain != "WT", dose != "Untreated") %>%
+  left_join(wt_rich, by = c("dose", "repeat")) %>%
+  group_by(dose, strain) %>%
+  summarise(n_pairs = sum(complete.cases(viability, wt_viability)),
+            p_raw = paired_ttest_p(viability, wt_viability),
+            .groups = "drop") %>%
+  group_by(dose) %>%
+  mutate(p_adj = p.adjust(p_raw, method = "holm"),
+         stars = p_to_stars(p_adj)) %>%
+  ungroup() %>%
+  arrange(dose, strain)
+write_csv(strain_stats, out_path("strain_vs_WT_paired_ttest.csv"))
+knitr::kable(strain_stats, digits = 6)
+```
+
+Comparison with the saved results of the original analysis:
+
+```{r verify}
+orig_stats <- read_csv(data_path(paste0("strain_vs_WT_paired_ttest_", version_name, ".csv")),
+                       col_types = cols(dose = col_character(), stars = col_character()),
+                       show_col_types = FALSE)
+cmp <- strain_stats %>%
+  mutate(dose = as.character(dose), strain = as.character(strain)) %>%
+  inner_join(orig_stats, by = c("dose", "strain"), suffix = c("", "_orig"))
+data.frame(
+  check = c("rows matched", "max |p_raw diff|", "max |p_adj diff|", "stars identical"),
+  value = c(nrow(cmp),
+            max(abs(cmp$p_raw - cmp$p_raw_orig)),
+            max(abs(cmp$p_adj - cmp$p_adj_orig)),
+            all(coalesce(cmp$stars, "") == coalesce(cmp$stars_orig, "")))
+)
+```
+
+## Figure panel: normalized viability across micafungin doses
+
+```{r figure-micafungin, fig.width = 12, fig.height = 6}
+star_offset <- 0.05 * max(norm_summary$mean_norm + dplyr::coalesce(norm_summary$se_norm, 0),
+                          na.rm = TRUE)
+
+# All strain x dose combinations are kept (untested ones get an empty label) so that
+# position_dodge() aligns the labels with the 5 dodged bars per dose
+norm_annot <- norm_summary %>%
+  left_join(strain_stats %>% select(dose, strain, stars), by = c("dose", "strain")) %>%
+  mutate(stars = tidyr::replace_na(stars, ""),
+         y_star = mean_norm + dplyr::coalesce(se_norm, 0) + star_offset)
+
+p_micafungin <- ggplot(norm_summary, aes(x = dose, y = mean_norm, fill = strain)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey40", linewidth = 0.4) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.75,
+           color = "black", linewidth = 0.25) +
+  geom_errorbar(aes(ymin = pmax(mean_norm - dplyr::coalesce(se_norm, 0), 0),
+                    ymax = mean_norm + dplyr::coalesce(se_norm, 0)),
+                position = position_dodge(width = 0.8), width = 0.2, linewidth = 0.4) +
+  geom_point(data = norm_df, aes(x = dose, y = norm_viability, group = strain),
+             inherit.aes = FALSE, alpha = 0.3, size = 1.5,
+             position = position_jitterdodge(jitter.width = 0.12, jitter.height = 0,
+                                             dodge.width = 0.8)) +
+  geom_text(data = norm_annot, aes(x = dose, y = y_star, group = strain, label = stars),
+            inherit.aes = FALSE, position = position_dodge(width = 0.8), size = 3) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.25), labels = scales::percent_format(accuracy = 1),
+                     expand = expansion(mult = c(0, 0.15))) +
+  labs(x = "Micafungin dose (ug/mL)", y = "Relative viability (vs untreated)",
+       title = "KO Strain Viability Normalized to Untreated Controls",
+       subtitle = "Rich media; each replicate divided by the mean viability of that strain's untreated replicates",
+       fill = "Strain",
+       caption = paste0(
+         "Bars = mean of triplicates; error bars = SE; points = individual replicates; ",
+         "dashed line = untreated baseline (1.0)\n",
+         "Stars: two-sided paired t-test, KO strain vs WT at each dose on raw viability ",
+         "(paired by repeat), Holm-corrected per dose\n",
+         "ns >= 0.05, * < 0.05, ** < 0.01, *** < 0.001, **** < 0.0001")) +
+  cowplot::theme_cowplot() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        legend.position = "right")
+p_micafungin
+
+ggsave(out_path("Figure_6_TFKO_micafungin_proliferative.pdf"), p_micafungin, width = 12, height = 6)
+ggsave(out_path("Figure_6_TFKO_micafungin_proliferative.png"), p_micafungin, width = 12, height = 6,
+       dpi = 300)
+```
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

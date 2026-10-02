@@ -1,0 +1,201 @@
+---
+title: "Figure 5: Antifungal response of 20 isolates and SC5314, proliferative vs quiescent"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 10, fig.height = 6)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(purrr)
+  library(ggplot2)
+})
+set.seed(1)
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(f) file.path(params$data_dir, f)
+out_path <- function(...) file.path(params$out_dir, ...)
+```
+
+## Figure legend
+
+**Figure 5. Quiescent cells exhibit increased survival when treated with antifungals.**
+C) Viability for proliferative and quiescent cells using 20 genetically diverse strains and the lab
+strain SC5314 at the LD50 drug concentration identified for proliferative SC5314 cells. Strains were
+treated with either 1µg/mL caspofungin, 1µg/mL micafungin, or 20µg/mL amphotericin B. Black line
+inside box shows median viability of 21 strains; box range indicates interquartile range (IQR);
+whiskers indicate 1.5 times the IQR from median. Viability of each strain is indicated as a black
+dot; SC5314 viability is indicated with a yellow dot; the p-value was determined by Student's t-test,
+∗p < 0.05, ∗∗p < 0.01, ∗∗∗p < 0.001.
+
+The code below uses paired t-tests (paired by strain) and plots SC5314 in orange.
+
+## Input data
+
+All inputs are in `data/`. Each row is one well with gated Live/Dead percentages (raw FCS files are
+not distributed). `Dose` is coded 0 = untreated control and 1 = treated (1 µg/mL caspofungin,
+1 µg/mL micafungin, or the amphotericin B treatment dose).
+
+| File | Description |
+|---|---|
+| `Isolates_AmpB_Exp.csv` | Amphotericin B, proliferative cultures, 20 isolates + SC5314, control and treated |
+| `Isolates_AmpB_Qui.csv` | Amphotericin B, quiescent cultures |
+| `Isolates_Caspofungin_Exp.csv` | Caspofungin, proliferative cultures |
+| `Isolates_Caspofungin_Qui.csv` | Caspofungin, quiescent cultures |
+| `Isolates_Micafungin_Exp.csv` | Micafungin, proliferative cultures |
+| `Isolates_Micafungin_Qui.csv` | Micafungin, quiescent cultures |
+
+```{r load-data}
+read_data <- function(file) {
+  read.table(file = data_path(file), header = TRUE, sep = ",", dec = ".", fill = TRUE,
+             fileEncoding = "UTF-8-BOM")
+}
+AmpB_Exp <- read_data("Isolates_AmpB_Exp.csv")
+AmpB_Qui <- read_data("Isolates_AmpB_Qui.csv")
+Casp_Exp <- read_data("Isolates_Caspofungin_Exp.csv")
+Casp_Qui <- read_data("Isolates_Caspofungin_Qui.csv")
+Mica_Exp <- read_data("Isolates_Micafungin_Exp.csv")
+Mica_Qui <- read_data("Isolates_Micafungin_Qui.csv")
+
+df <- rbind(AmpB_Exp, AmpB_Qui, Casp_Exp, Casp_Qui, Mica_Exp, Mica_Qui)
+count(df, Treatment, Growth, Dose)
+```
+
+## Viability per strain and condition
+
+Viability = Live% / (Live% + Dead%). Dose 0 wells from all three drug files are pooled as
+"Untreated"; Dose 1 wells keep the drug name.
+
+```{r prepare}
+df_summary <- df %>%
+  group_by(Sample, Growth, Treatment, Dose) %>%
+  summarise(
+    Total = Live_percent + Dead_percent,
+    Live_percent = Live_percent / Total,
+    .groups = "drop"
+  )
+
+plot_data <- df_summary %>%
+  mutate(Condition = case_when(
+    Dose == 0 ~ "Untreated",
+    TRUE ~ Treatment
+  )) %>%
+  filter(Dose == 0 | (Dose == 1 & Treatment %in% c("Caspofungin", "Micafungin", "AmphotericinB")))
+
+level_order <- c(
+  "Untreated Exponential", "Untreated Quiescent",
+  "Caspofungin Exponential", "Caspofungin Quiescent",
+  "Micafungin Exponential", "Micafungin Quiescent",
+  "AmphotericinB Exponential", "AmphotericinB Quiescent"
+)
+
+plot_data <- plot_data %>%
+  mutate(Group_Label = paste(Condition, Growth, sep = " "),
+         Group_Label = factor(Group_Label, levels = level_order))
+
+plot_data %>%
+  group_by(Group_Label) %>%
+  summarise(n = n(), median_viability = median(Live_percent), .groups = "drop")
+```
+
+## Paired t-tests, proliferative vs quiescent
+
+```{r paired-tests}
+fmt <- function(p) {
+  if (is.na(p)) return(list(p_label = "n/a", stars = "n.s."))
+  if (p < 0.001) return(list(p_label = "p < 0.001", stars = "***"))
+  if (p < 0.01) return(list(p_label = sprintf("p = %.3f", p), stars = "**"))
+  if (p < 0.05) return(list(p_label = sprintf("p = %.3f", p), stars = "*"))
+  list(p_label = sprintf("p = %.3f", p), stars = "n.s.")
+}
+
+paired_tests <- plot_data %>%
+  group_by(Condition) %>%
+  summarise(
+    data_wide = list(
+      pivot_wider(
+        pick(everything()),
+        id_cols = Sample,
+        names_from = Growth,
+        values_from = Live_percent
+      )
+    ),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    test_results = map(data_wide, ~{
+      d <- .x
+      if (!all(c("Exponential", "Quiescent") %in% names(d))) {
+        return(list(p = NA_real_, n = 0))
+      }
+      d_clean <- d %>% filter(!is.na(Exponential), !is.na(Quiescent))
+      n_pairs <- nrow(d_clean)
+      if (n_pairs >= 2) {
+        p_val <- tryCatch(
+          t.test(d_clean$Exponential, d_clean$Quiescent, paired = TRUE)$p.value,
+          error = function(e) NA_real_
+        )
+      } else {
+        p_val <- NA_real_
+      }
+      list(p = p_val, n = n_pairs)
+    }),
+    p_value = map_dbl(test_results, "p"),
+    n_pairs = map_int(test_results, "n"),
+    stats = map(p_value, fmt),
+    p_label = map_chr(stats, "p_label"),
+    stars = map_chr(stats, "stars")
+  ) %>%
+  select(Condition, p_value, n_pairs, p_label, stars)
+
+paired_tests
+write.csv(paired_tests, out_path("Figure_5_paired_tests.csv"), row.names = FALSE)
+```
+
+For "Untreated", every strain has three Dose 0 values per growth phase (one per drug file), so
+`pivot_wider()` returns list-columns and the paired test returns `NA`.
+
+## Plot
+
+```{r plot-drug-response, fig.width = 10, fig.height = 6}
+p <- ggplot(plot_data, aes(x = Group_Label, y = Live_percent, fill = Growth)) +
+  geom_boxplot(outlier.shape = NA, width = 0.6, alpha = 0.8) +
+  geom_jitter(data = subset(plot_data, !Sample %in% c("SC5314")),
+              position = position_jitter(width = 0.08, height = 0),
+              size = 1, color = "black", alpha = 0.7) +
+  geom_jitter(data = subset(plot_data, Sample %in% c("SC5314")),
+              position = position_jitter(width = 0.08, height = 0),
+              size = 2, color = "orange") +
+  scale_y_continuous(name = "Viability (%)", limits = c(0, 1)) +
+  scale_fill_manual(values = c("Exponential" = "#F8766D", "Quiescent" = "#00BFC4")) +
+  theme_gray() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    axis.title.x = element_blank(),
+    legend.position = "right",
+    panel.grid.major.x = element_blank()
+  ) +
+  labs(fill = "Growth Phase",
+       title = "Drug Response: Exponential vs Quiescent",
+       subtitle = "Paired t-tests comparing growth phases (Dose 0 = Untreated, Dose 1 = Treated)")
+p
+
+ggsave(out_path("drug_response_4pairs.png"), p, width = 10, height = 6, dpi = 300)
+ggsave(out_path("drug_response_4pairs.pdf"), p, width = 10, height = 6)
+```
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

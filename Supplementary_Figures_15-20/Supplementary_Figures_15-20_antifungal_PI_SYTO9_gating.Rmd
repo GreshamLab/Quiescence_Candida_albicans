@@ -1,0 +1,199 @@
+---
+title: "Supplementary Figures 15-20: PI/SYTO9 gating of SC5314 exposed to caspofungin, micafungin and amphotericin B"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+  experiment: "Casp_Mica"   # "Casp_Mica" (Supp. Figs 15, 16, 18, 19) or "AmpB" (Supp. Figs 17, 20)
+  fcs_dir: "FCS_files"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(f) file.path(params$data_dir, params$experiment, f)
+out_path <- function(...) file.path(params$out_dir, ...)
+
+settings <- list(
+  Casp_Mica = list(version_name = "OzanImir_20250911_v1",
+                   details = "Vignette-Experiment-Details.csv",
+                   markers = "Vignette-Experiment-Markers.csv",
+                   rows_per_page = 6L, reverse_order = FALSE),
+  AmpB = list(version_name = "OzanImir_20251009_v2",
+              details = "161025-Experiment-Details.csv",
+              markers = "161025-Experiment-Markers.csv",
+              rows_per_page = 7L, reverse_order = TRUE)
+)[[params$experiment]]
+```
+
+## Figure legend
+
+**Supplementary Figure 15.** Cell viability quantification to validate accuracy of PI/SYTO9 staining
+quantification with caspofungin exposed proliferative cells. A) untreated; B–F) 0.001, 0.01, 0.1, 1
+and 10 ug/mL caspofungin. Each panel shows PI and SYTO9 distribution functions as well as the gated
+PI/SYTO9 2D quantification; cells grown in rich media.
+
+**Supplementary Figure 16.** As Supplementary Figure 15, with micafungin exposed proliferative cells.
+
+**Supplementary Figure 17.** As Supplementary Figure 15, with amphotericin B exposed proliferative
+cells (A untreated; B–G 0.001, 0.01, 0.1, 1, 10 and 20 ug/mL amphotericin B).
+
+**Supplementary Figure 18.** As Supplementary Figure 15, with caspofungin exposed quiescent cells.
+
+**Supplementary Figure 19.** As Supplementary Figure 15, with micafungin exposed quiescent cells.
+
+**Supplementary Figure 20.** As Supplementary Figure 17, with amphotericin B exposed quiescent cells.
+
+(Full legend text is in the folder README.)
+
+## Input data
+
+Raw FCS files are **not distributed**, so this whole analysis is documented but not evaluated
+(`eval = FALSE`); rendering only prints the experiment details. Set `params$experiment` to choose
+the data set; files are read from `data/<experiment>/`.
+
+| File | Description |
+|---|---|
+| `data/Casp_Mica/Vignette-Experiment-Details.csv` | 96 FCS files: Strain1 (SC5314) and Strain2, 5FC/AmpB/caspofungin/micafungin, 0–10 ug/mL, exponential and quiescent |
+| `data/Casp_Mica/sample_sheet_vignette_simple.csv` | Sample sheet (name, strain, drug, dose, growth) merged into the experiment details |
+| `data/Casp_Mica/Vignette-Experiment-Markers.csv` | Channel/marker table (B12-A = SYTO9, YG4-A = PI) |
+| `data/Casp_Mica/cytek_gating_OzanImir_20250911_v1.csv` | Gating template (Cells, Single_cells, Live_cells, Dead_cells) |
+| `data/AmpB/161025-Experiment-Details.csv` | 14 FCS files: SC5314 untreated and 0.001–20 ug/mL amphotericin B, exponential and quiescent (file names only, no metadata columns) |
+| `data/AmpB/161025-Experiment-Markers.csv` | Channel/marker table (B7-A, B12-A = SYTO9, YG4-A = PI) |
+| `data/AmpB/cytek_gating_OzanImir_20251009_v2.csv` | Gating template (Cells, Single_cells, Live_cells, Dead_cells) |
+
+```{r experiment-details}
+settings[c("version_name", "rows_per_page", "reverse_order")]
+read.csv(data_path(settings$details))
+```
+
+## Gating from FCS (not evaluated; FCS not distributed)
+
+```{r gating-libraries, eval = FALSE}
+library(cowplot)
+library(flowCore)
+library(flowWorkspace)
+library(openCyto)
+library(CytoExploreR)
+library(tidyverse)
+```
+
+Load the FCS files (expected in `params$fcs_dir`) as a gating set with the shipped experiment
+details and markers:
+
+```{r gating-load, eval = FALSE}
+my_gating_set <- cyto_setup(path = params$fcs_dir, restrict = TRUE, select = "fcs",
+                            details = data_path(settings$details),
+                            markers = data_path(settings$markers))
+cyto_details(my_gating_set)
+```
+
+Arcsinh transforms (cofactor 150 for SYTO9 and PI, 500 for FSC/SSC):
+
+```{r gating-transform, eval = FALSE}
+SYTO9_trans <- cyto_transformer_arcsinh(my_gating_set, channels = c("B12-A"), cofactor = 150)
+PI_trans <- cyto_transformer_arcsinh(my_gating_set, channels = c("YG4-A"), cofactor = 150)
+FSC_SSC_trans <- cyto_transformer_arcsinh(my_gating_set,
+                                          channels = c("FSC-A", "FSC-H", "SSC-A", "SSC-H"),
+                                          cofactor = 500)
+combined_trans <- cyto_transformer_combine(SYTO9_trans, PI_trans, FSC_SSC_trans)
+transformed_gating_set <- cyto_transform(my_gating_set, trans = combined_trans)
+```
+
+Apply the gating template (Cells on FSC-A/SSC-A, Single_cells on SSC-A/SSC-H, Live_cells and
+Dead_cells on YG4-A/B12-A; gates were originally drawn with `cyto_gate_draw()`):
+
+```{r gating-apply, eval = FALSE}
+cyto_gatingTemplate_apply(transformed_gating_set,
+                          gatingTemplate = data_path(paste0("cytek_gating_", settings$version_name, ".csv")))
+```
+
+PI and SYTO9 histograms, one row per sample (6 rows per page for Casp_Mica; 7 rows per page in
+reversed sample order for AmpB):
+
+```{r gating-histograms, eval = FALSE}
+theme_set(theme_cowplot())
+gs <- transformed_gating_set
+rows_per_page <- settings$rows_per_page
+
+get_df <- function(gs, i, chans = c("YG4-A", "B12-A")) {
+  cf <- gh_pop_get_data(gs[[i]], "root", inverse.transform = TRUE)
+  ff <- cytoframe_to_flowFrame(cf)
+  m <- exprs(ff)
+  df <- as.data.frame(m[, chans, drop = FALSE], check.names = FALSE)
+  names(df) <- chans
+  df$PI <- df[[chans[1]]]
+  df$SYTO9 <- df[[chans[2]]]
+  df
+}
+
+# log10 histogram when positive values exist, otherwise linear
+plot_hist_log_if_positive <- function(df, var, xlabel) {
+  x_max <- 1e6
+  if (any(df[[var]] > 0, na.rm = TRUE)) {
+    df_plot <- df[df[[var]] > 0 & is.finite(df[[var]]), , drop = FALSE]
+    ggplot(df_plot, aes_string(var)) +
+      geom_histogram(bins = 300, fill = "steelblue", color = "black", alpha = 0.6) +
+      scale_x_log10(limits = c(1, x_max)) +
+      ggplot2::annotation_logticks(sides = "b") +
+      coord_cartesian(xlim = c(1, x_max)) +
+      labs(x = xlabel, y = "Count")
+  } else {
+    ggplot(df, aes_string(var)) +
+      geom_histogram(bins = 300, fill = "steelblue", color = "black", alpha = 0.6) +
+      coord_cartesian(xlim = c(0, x_max)) +
+      labs(x = xlabel, y = "Count")
+  }
+}
+
+n_samples <- length(gs)
+n_pages <- ceiling(n_samples / rows_per_page)
+sample_order <- if (settings$reverse_order) rev(seq_len(n_samples)) else seq_len(n_samples)
+
+for (page in seq_len(n_pages)) {
+  idx <- sample_order[((page - 1) * rows_per_page + 1):min(page * rows_per_page, n_samples)]
+  row_plots <- vector("list", length(idx))
+  for (k in seq_along(idx)) {
+    i <- idx[k]
+    df <- get_df(gs, i, c("YG4-A", "B12-A"))
+    p_pi <- plot_hist_log_if_positive(df, "PI", "PI")
+    p_sy <- plot_hist_log_if_positive(df, "SYTO9", "SYTO9")
+    row_core <- plot_grid(p_pi, p_sy, ncol = 2, align = "hv", axis = "tblr")
+    row_plots[[k]] <- plot_grid(row_core, labels = LETTERS[k], label_size = 18,
+                                label_fontface = "bold", label_x = 0, hjust = 0)
+  }
+  page_grid <- plot_grid(plotlist = row_plots, ncol = 1)
+  ggsave(filename = out_path(sprintf("PI_SYTO9_grid_2x%d_p%02d.pdf", rows_per_page, page)),
+         plot = page_grid, device = grDevices::pdf,
+         width = 10.5, height = 18, units = "in", useDingbats = FALSE)
+}
+```
+
+Gated PI x SYTO9 scatter plots with Live_cells / Dead_cells percentages (right panels):
+
+```{r gating-scatter, eval = FALSE}
+save_gating_png <- function(gs, samp, outfile) {
+  grDevices::png(filename = outfile, width = 6, height = 4, units = "in", res = 300)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  cyto_plot(gs, parent = "Single_cells", channels = c("YG4-A", "B12-A"),
+            axes_limits = "data", xlab = "PI", ylab = "SYTO9", alias = "")
+}
+
+for (i in seq_along(transformed_gating_set)) {
+  samp <- flowWorkspace::sampleNames(transformed_gating_set)[i]
+  outfile <- out_path(sprintf("PI_SYTO9_gating_%s.png", samp))
+  try(save_gating_png(transformed_gating_set[i], samp, outfile), silent = TRUE)
+}
+```
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

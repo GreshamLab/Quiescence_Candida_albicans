@@ -1,0 +1,161 @@
+---
+title: "Figure 6: Viability screen of the TF KO collection in quiescence"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+  version_name: "OzanImir_20260310_v1"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+suppressPackageStartupMessages({
+  library(tidyverse)
+})
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(...) file.path(params$data_dir, "flow_screen", ...)
+out_path <- function(...) file.path(params$out_dir, ...)
+version_name <- params$version_name
+results_file <- data_path(paste0(version_name, "_viability_results.csv"))
+has_results <- file.exists(results_file)
+```
+
+## Figure legend
+
+**Figure 6. Transcriptional regulation of quiescence.** A) Screen of TF KOs for decreased survival
+in quiescence (panel A in the current figure draft).
+
+Each strain of the transcription factor knockout collection (166 KOs) and the wild-type control
+SC5314 was grown to quiescence for 3 days, stained with SYTO9 and propidium iodide (PI) and
+measured on a Cytek flow cytometer. Viability = Live cells / (Live cells + Dead cells) x 100.
+Strains are ranked by viability; SC5314 is shown in red with a dashed reference line.
+
+## Input data
+
+All inputs are in `data/flow_screen/`:
+
+| File | Description |
+|---|---|
+| `sample_sheet_vignette_simple.csv` | FCS file name to strain ID (Strain001-Strain166, SC5314) |
+| `Vignette-Experiment-Details.csv` | CytoExploreR experiment details (same content as the sample sheet) |
+| `Vignette-Experiment-Markers.csv` | CytoExploreR channel/marker table (SYTO9 B7-A, PI YG4-A) |
+| `cytek_gating_OzanImir_20260310_v1.csv` | CytoExploreR gating template (Cells, Single_cells, Live_cells, Dead_cells) |
+| `OzanImir_20260310_v1_viability_results.csv` | Per-strain gated counts and viability. **Not available yet** (to be added) |
+
+The raw FCS files are not distributed. The per-strain summary table written by the gating step
+(`OzanImir_20260310_v1_viability_results.csv`) was not kept, so the plot chunk below only runs once
+that table is added to `data/flow_screen/`.
+
+Strain IDs map to plate wells; the strain-to-gene plate map is to be added.
+
+## Gating (not run: requires FCS files)
+
+Gating was done with CytoExploreR on the FCS files (not distributed), using the gating template in
+`data/flow_screen/`. Transforms: arcsinh, cofactor 150 for SYTO9 (B7-A) and PI (YG4-A), cofactor
+500 for FSC/SSC. Gates: Cells (FSC-A/SSC-A) > Single_cells (SSC-A/SSC-H) > Live_cells and
+Dead_cells (YG4-A/B7-A).
+
+```{r gating, eval = FALSE}
+library(CytoExploreR)
+library(flowWorkspace)
+
+# FCS files are expected in data/flow_screen/FCS_files (not distributed)
+my_gating_set <- cyto_setup(path = data_path("FCS_files"), restrict = TRUE, select = "fcs")
+
+# Attach the sample metadata (Vignette-Experiment-Details.csv = sample sheet joined to file names)
+experiment_details <- read_csv(data_path("Vignette-Experiment-Details.csv"), show_col_types = FALSE)
+for (i in seq_along(experiment_details)) {
+  pData(my_gating_set)[names(experiment_details)[i]] <- experiment_details[[i]]
+}
+
+SYTO9_trans <- cyto_transformer_arcsinh(my_gating_set, channels = c("B7-A"), cofactor = 150)
+PI_trans <- cyto_transformer_arcsinh(my_gating_set, channels = c("YG4-A"), cofactor = 150)
+FSC_SSC_trans <- cyto_transformer_arcsinh(my_gating_set,
+                                          channels = c("FSC-A", "FSC-H", "SSC-A", "SSC-H"),
+                                          cofactor = 500)
+combined_trans <- cyto_transformer_combine(SYTO9_trans, PI_trans, FSC_SSC_trans)
+transformed_gating_set <- cyto_transform(my_gating_set, trans = combined_trans)
+
+cyto_gatingTemplate_apply(transformed_gating_set,
+                          gatingTemplate = data_path(paste0("cytek_gating_", version_name, ".csv")))
+
+# Raw cell counts for Single_cells, Live_cells and Dead_cells
+pop_counts <- gs_pop_get_stats(transformed_gating_set,
+                               nodes = c("Single_cells", "Live_cells", "Dead_cells"),
+                               type = "count")
+pop_counts_wide <- as_tibble(pop_counts) %>%
+  pivot_wider(names_from = pop, values_from = count)
+
+metadata <- pData(transformed_gating_set) %>%
+  as_tibble(rownames = "sample") %>%
+  select(sample, strain)
+
+pop_counts_wide %>%
+  left_join(metadata, by = "sample") %>%
+  mutate(viability = Live_cells / (Live_cells + Dead_cells) * 100) %>%
+  select(sample, strain, Single_cells, Live_cells, Dead_cells, viability) %>%
+  write_csv(results_file)
+```
+
+## Viability ranking
+
+```{r viability, eval = has_results}
+viability_data <- read_csv(results_file, show_col_types = FALSE) %>%
+  mutate(is_control = strain == "SC5314") %>%
+  arrange(viability) %>%
+  mutate(strain = factor(strain, levels = unique(strain)))
+stopifnot(nrow(viability_data) == 167L)
+
+sc5314_viability <- viability_data %>%
+  filter(is_control) %>%
+  pull(viability)
+
+viability_data %>%
+  select(strain, Single_cells, Live_cells, Dead_cells, viability) %>%
+  knitr::kable(digits = 2)
+```
+
+```{r no-results, echo = FALSE, eval = !has_results, results = "asis"}
+cat("**Summary table not available:** `", basename(results_file),
+    "` is not in `data/flow_screen/`, so the panel cannot be drawn yet.\n", sep = "")
+```
+
+## Figure panel: ranked viability of the TF KO collection
+
+```{r figure-screen, eval = has_results, fig.width = 22, fig.height = 6}
+p_screen <- ggplot(viability_data, aes(x = strain, y = viability, fill = is_control)) +
+  geom_col(width = 0.8) +
+  geom_hline(yintercept = sc5314_viability, linetype = "dashed",
+             color = "firebrick", linewidth = 0.7) +
+  scale_fill_manual(values = c("FALSE" = "steelblue", "TRUE" = "firebrick"),
+                    labels = c("FALSE" = "TF KO Strain", "TRUE" = "SC5314 (WT Control)"),
+                    name = NULL) +
+  scale_y_continuous(limits = c(0, 105), breaks = seq(0, 100, 10), expand = c(0, 0)) +
+  labs(title = "KO Strain Collection Viability After 3 Day Incubation",
+       subtitle = "Viability = Live cells / (Live + Dead cells) × 100",
+       x = "Strain", y = "Viability (%)",
+       caption = paste0("Red dashed line: SC5314 (WT) viability = ",
+                        round(sc5314_viability, 1), "%\n",
+                        "n = ", nrow(viability_data), " strains, sorted by viability (ascending)")) +
+  theme_classic(base_size = 10) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 5),
+        plot.title = element_text(face = "bold", size = 12),
+        plot.caption = element_text(hjust = 0),
+        legend.position = "top")
+p_screen
+
+ggsave(out_path("Figure_6_TFKO_viability_screen.pdf"), p_screen, width = 22, height = 6)
+ggsave(out_path("Figure_6_TFKO_viability_screen.png"), p_screen, width = 22, height = 6, dpi = 300)
+```
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

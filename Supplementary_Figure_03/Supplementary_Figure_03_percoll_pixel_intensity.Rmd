@@ -1,0 +1,132 @@
+---
+title: "Supplementary Figure 3: Pixel intensity profiles of Percoll density fractionation"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(cowplot)
+})
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(f) file.path(params$data_dir, f)
+out_path <- function(...) file.path(params$out_dir, ...)
+```
+
+## Figure legend
+
+**Supplementary Figure 3. Density fractionation of proliferative and quiescent cultures in rich
+and minimal media.** A) Images of density fractionation indicating the region assessed for pixel
+quantification (yellow vertical line). B) Pixel intensity distribution across the analyzed region
+with maximum distance at which peak pixel intensity was achieved is indicated (red line with red
+text).
+
+## Input data
+
+| File | Description |
+|---|---|
+| `Rich_Exp_values.csv` | ImageJ line-profile (Distance (pixels), Gray_Value) along the marked region, rich media, proliferative |
+| `Rich_Qui_values.csv` | Same, rich media, quiescent |
+| `Minimal_Exp_values.csv` | Same, minimal media, proliferative |
+| `Minimal_Qui_values.csv` | Same, minimal media, quiescent |
+
+## Read profiles
+
+```{r read}
+files <- list(
+  Rich_Exp    = "Rich_Exp_values.csv",
+  Rich_Qui    = "Rich_Qui_values.csv",
+  Minimal_Exp = "Minimal_Exp_values.csv",
+  Minimal_Qui = "Minimal_Qui_values.csv"
+)
+
+data_list <- map(files, ~ read_csv(data_path(.x), show_col_types = FALSE))
+
+# normalise column names to 'distance' and 'gray'
+data_list <- map(data_list, function(df) {
+  df <- df %>%
+    rename_with(~ str_replace_all(.x, "[()]", "")) %>%
+    rename_with(~ str_replace_all(.x, "[- ]", "_"))
+  df %>%
+    rename(
+      distance = matches("(?i)distance"),
+      gray     = matches("(?i)gray|(?i)grey|(?i)Gray_Value")
+    )
+})
+
+# common axis limits
+all_dist_range <- range(unlist(map(data_list, ~ range(.x$distance, na.rm = TRUE))))
+all_gray_range <- range(unlist(map(data_list, ~ range(.x$gray, na.rm = TRUE))))
+x_limits <- c(floor(all_dist_range[1]), ceiling(all_dist_range[2]))
+y_limits <- c(floor(all_gray_range[1] - 1), ceiling(all_gray_range[2] + 1))
+
+# distance of peak pixel intensity
+imap_dfr(data_list, function(df, nm) {
+  i <- which.max(df$gray)
+  tibble(profile = nm, peak_distance = df$distance[i], peak_gray = df$gray[i])
+}) %>% knitr::kable(digits = 2, caption = "Distance (pixels) at peak pixel intensity")
+```
+
+## Plot
+
+```{r plot, fig.width=10, fig.height=8}
+base_theme <- theme_classic(base_size = 12) +
+  theme(
+    axis.title = element_blank(),
+    axis.text.x = element_text(color = "black"),
+    axis.text.y = element_text(color = "black"),
+    axis.ticks = element_line(color = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background  = element_rect(fill = "white", color = NA),
+    plot.margin = margin(t = 18, r = 14, b = 12, l = 14)
+  )
+
+# line profile with a dashed vertical line and label at the peak
+make_plot_mark_max <- function(df) {
+  idx_max <- which.max(df$gray)
+  x_max <- df$distance[idx_max]
+  y_max <- df$gray[idx_max]
+  x_text_offset <- (x_limits[2] - x_limits[1]) * 0.01
+
+  ggplot(df, aes(x = distance, y = gray)) +
+    geom_line(color = "black", linewidth = 0.7) +
+    geom_vline(xintercept = x_max, linetype = "dashed", color = "red", linewidth = 0.6) +
+    annotate("text", x = x_max + x_text_offset, y = y_max,
+             label = paste0(round(x_max, 1)),
+             hjust = 0, vjust = 10, size = 3.6, color = "red") +
+    scale_x_continuous(limits = x_limits, expand = c(0, 0)) +
+    scale_y_continuous(limits = y_limits, expand = c(0, 0)) +
+    coord_cartesian(clip = "off") +
+    base_theme
+}
+
+figure <- plot_grid(
+  make_plot_mark_max(data_list$Rich_Exp),    make_plot_mark_max(data_list$Rich_Qui),
+  make_plot_mark_max(data_list$Minimal_Exp), make_plot_mark_max(data_list$Minimal_Qui),
+  ncol = 2, align = "hv", scale = 0.96
+)
+
+figure
+ggsave(out_path("Supplementary_Figure_03_pixel_intensity.png"), figure,
+       width = 10, height = 8, dpi = 300)
+ggsave(out_path("Supplementary_Figure_03_pixel_intensity.pdf"), figure,
+       width = 10, height = 8)
+```
+
+## Session info
+
+```{r session}
+sessionInfo()
+```

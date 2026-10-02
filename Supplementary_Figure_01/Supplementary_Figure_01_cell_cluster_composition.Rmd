@@ -1,0 +1,115 @@
+---
+title: "Supplementary Figure 1: Cell cluster composition over time in rich and minimal media"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+suppressPackageStartupMessages({
+  library(tidyverse)
+})
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(f) file.path(params$data_dir, f)
+out_path <- function(...) file.path(params$out_dir, ...)
+```
+
+## Figure legend
+
+**Supplementary Figure 1. Phase contrast microscopy images of rich and minimal media-grown
+proliferative and quiescent cells used for bud index quantification.** A) Representative phase
+contrast microscopy images showing cells at different growth phases grown in rich and minimal
+media. Cells are counted and marked as 1 (singlet), 2 (doublet), 3 (triplet), 4 (quadruplet+) or
+5 (ambiguous) and counted using Cell Counter plugin for ImageJ. B) Cell cluster type percentages
+change with time in cells grown in rich and minimal media. Counts quantified from Cell Counter
+outputs; minimum of 200 cells were counted per condition.
+
+## Input data
+
+| File | Description |
+|---|---|
+| `PC_Microscopy_analysis.csv` | ImageJ Cell Counter counts per phase-contrast image (Singlet, Doublet, Triplet, Quadruplet+, Ambiguous) for rich and minimal media at 2, 4, 6, 24, 48, 72 h |
+
+## Aggregate counts
+
+Counts are summed per Media × Time; ambiguous cells are excluded, so the four cluster types add
+up to 100%.
+
+```{r aggregate}
+df <- read_csv(data_path("PC_Microscopy_analysis.csv"), show_col_types = FALSE)
+
+quad_col <- grep("^Quadruplet", names(df), value = TRUE)[1]
+if (!is.na(quad_col) && quad_col != "Quadruplet") {
+  names(df)[names(df) == quad_col] <- "Quadruplet"
+}
+
+df <- df %>%
+  mutate(across(c(Singlet, Doublet, Triplet, Quadruplet, Time), as.numeric),
+         Media = as.factor(Media))
+
+agg <- df %>%
+  group_by(Media, Time) %>%
+  summarise(
+    Singlet = sum(Singlet, na.rm = TRUE),
+    Doublet = sum(Doublet, na.rm = TRUE),
+    Triplet = sum(Triplet, na.rm = TRUE),
+    `Quadruplet+` = sum(Quadruplet, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(total_nonamb = Singlet + Doublet + Triplet + `Quadruplet+`) %>%
+  filter(total_nonamb > 0) %>%
+  arrange(Media, as.numeric(Time))
+
+knitr::kable(agg, caption = "Summed counts per Media x Time (ambiguous excluded)")
+
+agg_long <- agg %>%
+  pivot_longer(cols = c(Singlet, Doublet, Triplet, `Quadruplet+`),
+               names_to = "cluster", values_to = "count") %>%
+  mutate(percent = round(count / total_nonamb * 100, 1)) %>%
+  mutate(
+    Time = factor(Time, levels = sort(unique(as.numeric(as.character(Time))))),
+    cluster = factor(cluster, levels = c("Singlet", "Doublet", "Triplet", "Quadruplet+"))
+  )
+
+agg_long %>%
+  select(Media, Time, cluster, percent) %>%
+  pivot_wider(names_from = cluster, values_from = percent) %>%
+  knitr::kable(caption = "Cluster type percentages (%)")
+```
+
+## Plot
+
+```{r plot, fig.width=9, fig.height=4}
+p <- ggplot(agg_long, aes(x = Time, y = percent, fill = cluster)) +
+  geom_col(color = "black") +
+  facet_wrap(~ Media, nrow = 1) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 100.5),
+                     labels = function(x) paste0(x, "%")) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(x = "Time (h)", y = "Percentage of cells (%)", fill = "Cluster type",
+       title = "Cell cluster composition by Media and Time") +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(hjust = 0.5))
+
+p
+ggsave(out_path("Supplementary_Figure_01_cell_cluster_composition.png"), p,
+       width = 9, height = 4, dpi = 300)
+ggsave(out_path("Supplementary_Figure_01_cell_cluster_composition.pdf"), p,
+       width = 9, height = 4)
+```
+
+## Session info
+
+```{r session}
+sessionInfo()
+```

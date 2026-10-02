@@ -1,0 +1,73 @@
+﻿,Time,Media,Biological Rep,Technical Rep,2n % Parent,4n % Parent,Total,2n,4n
+Ozan_CellCycle_MediaEffect3-DC+BF-Rich_2hour-Tube_001,2,Rich,1,1,36.86,45.41,82.27,0.448036952,0.551963048
+Ozan_CellCycle_MediaEffect3-DC+BF-Rich_2hour-Tube_002,2,Rich,2,1,32.61,46.91,79.52,0.410085513,0.589914487
+Ozan_CellCycle_MediaEffect3-DC+BF-Rich_2hour-Tube_003,2,Rich,3,1,38.49,41.86,80.35,0.479029247,0.520970753
+Ozan_CellCycle_MediaEffect3-DC+BF-Minimal_2hour-Tube_001,2,Minimal,1,1,35.17,51.62,86.79,0.405231017,0.594768983
+Ozan_CellCycle_MediaEffect3-DC+BF-Minimal_2hour-Tube_002,2,Minimal,2,1,40.23,51.13,91.36,0.440345884,0.559654116
+Ozan_CellCycle_MediaEffect3-DC+BF-Minimal_2hour-Tube_003,2,Minimal,3,1,41.7,51.28,92.98,0.448483545,0.551516455
+Ozan_CellCycle_MediaEffect3-DC+BF-Rich_4hour-Tube_001,4,Rich,1,1,34.75,45.94,80.69,0.430660553,0.569339447
+Ozan_CellCycle_MediaEffect3-DC+BF-Rich_4hour-Tube_002,4,Rich,2,1,42.57,43.23,85.8,0.496153846,0.503846154
+Ozan_CellCycle_MediaEffect3-DC+BF-Rich_4hour-Tube_003,4,Rich,3,1,35.28,44.26,79.54,0.443550415,0.556449585
+Ozan_CellCycle_MediaEffect3-DC+BF-Minimal_4hour-Tube_001,4,Minimal,1,1,41.3,51.42,92.72,0.445427092,0.554572908
+Ozan_CellCycle_MediaEffect3-DC+BF-Minimal_4hour-Tube_002,4,Minimal,2,1,35.18,52.63,87.81,0.400637741,0.599362259
+Ozan_CellCycle_MediaEffect3-DC+BF-Minimal_4hour-Tube_003,4,Minimal,3,1,35.08,54.17,89.25,0.393053221,0.606946779
+Ozan_CellCycle_MediaEffect3-DC+BF-Rich_6hour-Tube_001,6,Rich,1,1,44.33,42.56,86.89,0.510185292,0.489814708
+Ozan_CellCycle_MediaEffect3-DC+BF-Rich_6hour-Tube_002,6,Rich,2,1,39.55,44.38,83.93,0.471226022,0.528773978
+Ozan_CellCycle_MediaEffect3-DC+BF-Rich_6hour-Tube_003,6,Rich,3,1,42.66,43.24,85.9,0.496623981,0.503376019
+Ozan_CellCycle_MediaEffect3-DC+BF-Minimal_6hour-Tube_001,6,Minimal,1,1,29.98,53.77,83.75,0.357970149,0.642029851
+Ozan_CellCycle_MediaEffect3-DC+BF-Minimal_6hour-Tube_002,6,Minimal,2,1,29.51,54.83,84.34,0.349893289,0.650106711
+Ozan_CellCycle_MediaEffect3-DC+BF-Minimal_6hour-Tube_003,6,Minimal,3,1,29.67,54.56,84.23,0.352249792,0.647750208
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-24hour-1-A1 Rep1,24,Rich,1,1,40.15,41.08,81.23,0.494275514,0.505724486
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-24hour-1-A2 Rep2,24,Rich,1,2,37.32,42.15,79.47,0.469611174,0.530388826
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-24hour-1-A3 Rep3,24,Rich,1,3,37.58,42.33,79.91,0.470279064,0.529720936
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-24hour-2-B1 Rep1,24,Rich,2,1,45.91,42.52,88.43,0.519167703,0.480832297
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-24hour-2-B2 Rep2,24,Rich,2,2,45.56,42.54,88.1,0.517139614,0.482860386
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-24hour-2-B3 Rep3,24,Rich,2,3,45.81,42.7,88.51,0.517568636,0.482431364
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-24hour-3-C1 Rep1,24,Rich,3,1,43.36,37.36,80.72,0.53716551,0.46283449
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-24hour-3-C2 Rep2,24,Rich,3,2,43.76,37.39,81.15,0.539248306,0.460751694
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-24hour-3-C3 Rep3,24,Rich,3,3,44.74,37.58,82.32,0.543488824,0.456511176
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-48hour-1-D1 Rep1,48,Rich,1,1,40.47,26.42,66.89,0.605023172,0.394976828
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-48hour-1-D2 Rep2,48,Rich,1,2,42.7,25.76,68.46,0.623721881,0.376278119
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-48hour-1-D3 Rep3,48,Rich,1,3,43.56,25.22,68.78,0.633323641,0.366676359
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-48hour-2-E1 Rep1,48,Rich,2,1,45.11,37.1,82.21,0.548716701,0.451283299
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-48hour-2-E2 Rep2,48,Rich,2,2,45.47,37.14,82.61,0.550417625,0.449582375
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-48hour-2-E3 Rep3,48,Rich,2,3,50.17,34.53,84.7,0.592325856,0.407674144
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-48hour-3-F1 Rep1,48,Rich,3,1,45.07,29.67,74.74,0.603023816,0.396976184
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-48hour-3-F2 Rep2,48,Rich,3,2,45.3,29.73,75.03,0.603758497,0.396241503
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-48hour-3-F3 Rep3,48,Rich,3,3,47.12,29.33,76.45,0.616350556,0.383649444
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-72hour-1-G1 Rep1,72,Rich,1,1,39.34,24.74,64.08,0.6139201,0.3860799
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-72hour-1-G2 Rep2,72,Rich,1,2,41.08,24.87,65.95,0.622896133,0.377103867
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-72hour-1-G3 Rep3,72,Rich,1,3,39.49,24.75,64.24,0.614726027,0.385273973
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-72hour-2-H1 Rep1,72,Rich,2,1,44.31,36.76,81.07,0.546564697,0.453435303
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-72hour-2-H2 Rep2,72,Rich,2,2,43.26,37.24,80.5,0.537391304,0.462608696
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-72hour-2-H3 Rep3,72,Rich,2,3,43.37,37.49,80.86,0.536359139,0.463640861
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-72hour-3-A4 Rep1,72,Rich,3,1,44.45,28.92,73.37,0.605833447,0.394166553
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-72hour-3-A5 Rep2,72,Rich,3,2,46.38,28.91,75.29,0.616018063,0.383981937
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Rich-72hour-3-A6 Rep3,72,Rich,3,3,52.7,28.48,81.18,0.649174674,0.350825326
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-72hour-1-B4 Rep1,72,Minimal,1,1,43.33,24.88,68.21,0.635244099,0.364755901
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-72hour-1-B5 Rep2,72,Minimal,1,2,42.56,24.96,67.52,0.630331754,0.369668246
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-72hour-1-B6 Rep3,72,Minimal,1,3,41.56,25.23,66.79,0.62224884,0.37775116
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-72hour-2-C4 Rep1,72,Minimal,2,1,36.86,26.72,63.58,0.579742057,0.420257943
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-72hour-2-C5 Rep2,72,Minimal,2,2,37.57,26.7,64.27,0.584565116,0.415434884
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-72hour-2-C6 Rep3,72,Minimal,2,3,35.97,27.59,63.56,0.565921963,0.434078037
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-72hour-3-D4 Rep1,72,Minimal,3,1,38.34,28.28,66.62,0.575502852,0.424497148
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-72hour-3-D5 Rep2,72,Minimal,3,2,37.47,28.4,65.87,0.56884773,0.43115227
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-72hour-3-D6 Rep3,72,Minimal,3,3,38.77,28.33,67.1,0.577794337,0.422205663
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-48hour-1-E4 Rep1,48,Minimal,1,1,28.71,39.95,68.66,0.418147393,0.581852607
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-48hour-1-E5 Rep2,48,Minimal,1,2,29,40.78,69.78,0.41559186,0.58440814
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-48hour-1-E6 Rep3,48,Minimal,1,3,29.92,43.04,72.96,0.410087719,0.589912281
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-48hour-2-F4 Rep1,48,Minimal,2,1,39.34,32.05,71.39,0.551057571,0.448942429
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-48hour-2-F5 Rep2,48,Minimal,2,2,39.09,31.4,70.49,0.554546744,0.445453256
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-48hour-2-F6 Rep3,48,Minimal,2,3,37.91,32.37,70.28,0.539413773,0.460586227
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-48hour-3-G4 Rep1,48,Minimal,3,1,33.01,32.18,65.19,0.506366007,0.493633993
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-48hour-3-G5 Rep2,48,Minimal,3,2,32.62,32.63,65.25,0.499923372,0.500076628
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-48hour-3-G6 Rep3,48,Minimal,3,3,31.7,32.45,64.15,0.494154326,0.505845674
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-24hour-1-H4 Rep1,24,Minimal,1,1,26.02,36.18,62.2,0.418327974,0.581672026
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-24hour-1-H5 Rep2,24,Minimal,1,2,25.2,36.23,61.43,0.410223018,0.589776982
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-24hour-1-H6 Rep3,24,Minimal,1,3,24.49,36.43,60.92,0.402002626,0.597997374
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-24hour-2-A7 Rep1,24,Minimal,2,1,34.54,34.62,69.16,0.499421631,0.500578369
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-24hour-2-A8 Rep2,24,Minimal,2,2,33.54,34.61,68.15,0.49214967,0.50785033
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-24hour-2-A9 Rep3,24,Minimal,2,3,36.34,35.5,71.84,0.505846325,0.494153675
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-24hour-3-B7 Rep1,24,Minimal,3,1,28.47,36.76,65.23,0.436455619,0.563544381
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-24hour-3-B8 Rep2,24,Minimal,3,2,28.14,38.08,66.22,0.424947146,0.575052854
+Ozan_CellCycle_MediaEffect3-SecondHalf-Time24-48-72-Minimal-24hour-3-B9 Rep3,24,Minimal,3,3,27.93,38.37,66.3,0.421266968,0.578733032
