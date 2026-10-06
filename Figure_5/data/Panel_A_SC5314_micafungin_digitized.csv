@@ -1,0 +1,11 @@
+Growth,Dose_ug_mL,Mean_viability_pct,SEM_pct,Replicates_pct,CFU_plate,Source
+Proliferative,0.001,99.69,,,,digitized
+Proliferative,0.01,99.48,,,a,digitized
+Proliferative,0.1,77.20,4.70,84.03;79.37;68.20,b,digitized
+Proliferative,1,2.18,0.26,2.52;1.68;2.34,c,digitized
+Proliferative,10,2.52,,,d,digitized
+Quiescent,0.001,86.74,,,,digitized
+Quiescent,0.01,88.26,0.41,88.99;87.58;88.21,e,digitized
+Quiescent,0.1,86.58,,,f,digitized
+Quiescent,1,85.61,,,g,digitized
+Quiescent,10,83.41,0.78,84.76;82.07;83.40,h,digitized

@@ -1,0 +1,200 @@
+---
+title: "Supplementary Figure 9: GO over-representation analysis of temporal expression clusters"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+  n_clusters: 8
+  show_category: 5         # terms per cluster, as dotplot(showCategory = 5) in the analysis
+  label_width: 50          # wrap GO term names, as dotplot(label_format = 50) in the analysis
+  late_time: 24            # first quiescent time point (shaded)
+  p_cap: 1.0e-20           # colour scale floor for adjusted p (smaller values shown at the cap)
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 13, fig.height = 15)
+suppressPackageStartupMessages({
+  library(data.table)
+  library(ggplot2)
+  library(ggtext)
+  library(patchwork)
+})
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(f) file.path(params$data_dir, f)
+out_path <- function(...) file.path(params$out_dir, ...)
+```
+
+## Figure legend
+
+**Supplementary Figure 9. GO over-representation analysis of the temporal expression clusters.**
+Time-responsive genes (likelihood-ratio test padj < 0.05 in rich or minimal medium) were grouped into
+`r params$n_clusters` clusters by hierarchical clustering of their z-scored mean expression in each medium
+and time point (Figure 4B). Top, expression pattern of each cluster in rich and minimal medium: median z-score
+(line) and interquartile range (band); n, genes per cluster. Time is on a log~2~ scale and the shaded area
+marks the quiescent phase (`r params$late_time`–72 h). Bottom, GO biological process terms over-represented in
+each cluster (hypergeometric test against the expressed, annotated genes; Benjamini–Hochberg adjusted
+p < 0.05). The `r params$show_category` most significant terms of each cluster are shown, together with
+their enrichment in any other cluster. Dot size is the fraction of the cluster's annotated genes in the
+term (gene ratio) and colour the adjusted p-value (values below 10^-20^ are shown at 10^-20^). The
+shaded block in each column marks the terms selected for that cluster.
+
+## Input data
+
+The inputs in `data/` are outputs of
+`CandidaTFKO5_WT_72h/analysis/WT_Rich_vs_Minimal_timecourse_DESeq2_ORA.Rmd`
+(`new_72h_mode = "add"`, `n_clusters = 8`, GO BP). Figure 4 uses the same files. This figure combines the
+"Expression patterns over time" and "ORA of temporal clusters" plots of that analysis.
+
+| File | Description |
+|---|---|
+| `vst_batch_corrected.csv.gz` | DESeq2 VST, sequencing batch removed, 46 libraries (WT, rich and minimal, 2–72 h) |
+| `timecourse_gene_clusters.csv` | Cluster assignment of the time-responsive genes |
+| `ORA_GO_timecourse_clusters.csv` | GO BP over-representation per cluster (`compareCluster(fun = enricher)`, BH-adjusted p < 0.05) |
+
+```{r load}
+vst <- fread(data_path("vst_batch_corrected.csv.gz"), data.table = FALSE)
+vmat <- as.matrix(vst[, -1]); rownames(vmat) <- vst[[1]]
+clusters <- fread(data_path("timecourse_gene_clusters.csv"), data.table = FALSE)
+ora <- fread(data_path("ORA_GO_timecourse_clusters.csv"))
+
+# Sample groups. CandidaTFKO5_WT_72h-* are the Rich 72 h libraries from run HJT3JDRX7.
+sample_medium <- ifelse(grepl("^WT_C_", colnames(vmat)), "Minimal", "Rich")
+sample_time <- ifelse(grepl("^CandidaTFKO5_WT_72h", colnames(vmat)), 72L,
+                      as.integer(sub("^WT_[YC]_(\\d+)-\\d$", "\\1", colnames(vmat))))
+times <- sort(unique(sample_time))
+media <- c("Rich", "Minimal")
+group_levels <- paste(rep(media, each = length(times)), times, sep = "_")
+sample_group <- factor(paste(sample_medium, sample_time, sep = "_"), levels = group_levels)
+table(sample_medium, sample_time)
+```
+
+## Cluster expression patterns
+
+As in the analysis, the VST values of the time-responsive genes are averaged per medium × time group and
+z-scored across all 14 groups, so rich and minimal are on the same scale. The clustering is rebuilt and
+checked against the saved assignment.
+
+```{r clusters}
+gmeans <- sapply(group_levels, function(g) rowMeans(vmat[clusters$gene, sample_group == g, drop = FALSE]))
+z <- t(scale(t(gmeans)))
+z <- z[complete.cases(z), ]
+hc <- hclust(dist(z), method = "ward.D2")
+cl <- cutree(hc, k = params$n_clusters)
+peak <- tapply(seq_along(cl), cl, function(i) which.max(colMeans(z[i, grep("^Rich", colnames(z)), drop = FALSE])))
+cl <- match(cl, order(peak)); names(cl) <- rownames(z)
+stopifnot(identical(unname(cl[clusters$gene]), clusters$cluster))
+n_genes <- table(factor(cl, levels = 1:params$n_clusters))
+n_genes
+
+zl <- melt(data.table(gene = rownames(z), z), id.vars = "gene", variable.name = "group",
+           value.name = "z", variable.factor = FALSE)
+zl[, c("medium", "time") := tstrsplit(group, "_", fixed = TRUE)]
+zl[, `:=`(time = as.integer(time), cluster = cl[gene])]
+traj <- zl[, .(med = median(z), lo = quantile(z, 0.25), hi = quantile(z, 0.75)), by = .(cluster, medium, time)]
+fwrite(traj[order(cluster, medium, time)], out_path("Supplementary_Figure_09_cluster_patterns.csv"))
+```
+
+## GO term selection
+
+Terms are selected as in `enrichplot::dotplot()` for a `compareCluster` result with
+showCategory = `r params$show_category`: all results are sorted by p-value, the top
+`r params$show_category` of each cluster are kept, and every significant result for those terms, in any
+cluster, is shown. Each term is listed under the first cluster that selected it, ordered by adjusted
+p-value, so the terms of each cluster form a block.
+
+```{r terms}
+ora[, cluster := as.integer(sub("^C", "", Cluster))]
+ora[, gene_ratio := vapply(strsplit(GeneRatio, "/", fixed = TRUE),
+                           function(x) as.numeric(x[1]) / as.numeric(x[2]), numeric(1))]
+top <- ora[order(pvalue)][, head(.SD, params$show_category), by = cluster]
+term_order <- top[order(cluster, p.adjust), .(ID, home = cluster)][!duplicated(ID)]
+dots <- merge(ora[ID %in% term_order$ID], term_order, by = "ID")
+dots[, label := stringr::str_wrap(Description, params$label_width)]
+dots[, term := factor(ID, levels = rev(term_order$ID))]
+term_labels <- setNames(unique(dots[, .(ID, label)])$label, unique(dots[, .(ID, label)])$ID)
+cat(nrow(term_order), "terms;", nrow(dots), "cluster-term results shown\n")
+dots[order(home, term, cluster), .(home, cluster, Description, GeneRatio, Count,
+                                   FoldEnrichment = round(FoldEnrichment, 1), p.adjust = signif(p.adjust, 2))]
+fwrite(dots[order(home, -as.integer(term), cluster),
+            .(term_cluster = home, cluster, ID, Description, GeneRatio, BgRatio, Count, FoldEnrichment,
+              pvalue, p.adjust, geneID)],
+       out_path("Supplementary_Figure_09_ORA_terms_shown.csv"))
+```
+
+## Figure
+
+The cluster columns of the two panels are aligned. Cluster colours follow Figure 4B.
+
+```{r figure, fig.width = 13, fig.height = 15}
+medium_cols <- c(Rich = "#D9934E", Minimal = "#8C6BB1")  # as Supplementary Figure 8
+cluster_cols <- setNames(c("#E7B3BC", "#8FB3D9", "#B7D98C", "#C9B3D9",
+                           "#E8794A", "#2A9D8F", "#B8B8B8", "#C0392B"), 1:params$n_clusters)  # Figure 4
+cluster_strip <- setNames(sprintf("<span style='color:%s'>&#9632;</span> **Cluster %d**<br>n = %s",
+                                  cluster_cols, 1:params$n_clusters, format(as.integer(n_genes), big.mark = ",")),
+                          1:params$n_clusters)
+facet_theme <- theme(strip.background = element_blank(), strip.text = element_markdown(size = 11, lineheight = 1.15),
+                     panel.spacing.x = unit(2.5, "mm"))
+
+traj[, `:=`(medium = factor(medium, levels = media), facet = factor(cluster, levels = 1:params$n_clusters))]
+p_top <- ggplot(traj, aes(time, med, colour = medium, fill = medium)) +
+  annotate("rect", xmin = sqrt(params$late_time * max(times[times < params$late_time])), xmax = Inf,
+           ymin = -Inf, ymax = Inf, fill = "grey92") +
+  geom_hline(yintercept = 0, linewidth = 0.3, colour = "grey60") +
+  geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.25, colour = NA) +
+  geom_line(linewidth = 0.8) +
+  scale_colour_manual(values = medium_cols, name = "Medium") +
+  scale_fill_manual(values = medium_cols, name = "Medium") +
+  scale_x_continuous(trans = "log2", breaks = c(2, 8, 24, 72)) +
+  facet_wrap(~ facet, nrow = 1, labeller = as_labeller(cluster_strip)) +
+  labs(x = "Time (h)", y = "Expression (z-score)") +
+  theme_bw(base_size = 12) +
+  theme(panel.grid.minor = element_blank(), axis.text.x = element_text(size = 8.5)) +
+  facet_theme
+
+dots[, facet := factor(cluster, levels = 1:params$n_clusters)]
+# Pale band behind each cluster's own block of terms, in its own column
+blocks <- dots[cluster == home, .(ymin = min(as.integer(term)) - 0.5, ymax = max(as.integer(term)) + 0.5),
+               by = .(home)][, facet := factor(home, levels = 1:params$n_clusters)]
+p_cap <- params$p_cap
+p_bottom <- ggplot(dots, aes(x = 1, y = term)) +
+  geom_blank() +  # sets the discrete y scale before the continuous block rectangles
+  geom_rect(data = blocks, aes(xmin = -Inf, xmax = Inf, ymin = ymin, ymax = ymax, fill = NULL),
+            inherit.aes = FALSE, fill = alpha(cluster_cols[as.character(blocks$home)], 0.25)) +
+  geom_point(aes(size = gene_ratio, fill = pmax(p.adjust, p_cap)), shape = 21, colour = "grey25", stroke = 0.3) +
+  scale_y_discrete(labels = term_labels) +
+  scale_x_continuous(breaks = NULL, expand = expansion(add = 1)) +
+  scale_fill_gradientn(colours = c("#7F0000", "#D7301F", "#FC8D59", "#FDD49E", "#FFF7EC"),
+                       trans = "log10", limits = c(p_cap, 0.05), name = "Adjusted p",
+                       breaks = 10^-c(20, 15, 10, 5, 2), labels = c(sprintf("\u2264 1e-%d", 20), "1e-15", "1e-10", "1e-5", "0.01"),
+                       guide = guide_colourbar(reverse = TRUE, barheight = unit(40, "mm"))) +
+  scale_size(range = c(1.8, 7.5), name = "Gene ratio") +
+  facet_wrap(~ facet, nrow = 1, drop = FALSE) +
+  labs(x = NULL, y = NULL) +
+  theme_bw(base_size = 12) +
+  theme(axis.text.y = element_text(size = 10, lineheight = 0.9), panel.grid.major.y = element_line(colour = "grey92")) +
+  facet_theme + theme(strip.text = element_blank())
+
+n_terms <- nlevels(dots$term)
+fig <- (p_top / p_bottom) +
+  plot_layout(heights = c(2.2, n_terms * 0.27), guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(size = 18, face = "bold"))
+fig_height <- 3.4 + n_terms * 0.27
+fig
+
+ggsave(out_path("Supplementary_Figure_09.pdf"), fig, width = 13, height = fig_height, device = cairo_pdf)
+ggsave(out_path("Supplementary_Figure_09.png"), fig, width = 13, height = fig_height, dpi = 300)
+```
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

@@ -1,16 +1,16 @@
-# Supplementary Figures 15–20. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification with antifungal-exposed proliferative and quiescent cells
+# Supplementary Figures 16–21. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification with antifungal-exposed proliferative and quiescent cells
 
 **Status:** Image only (raw FCS not distributed); gating documented
 
-![Supplementary Figure 15](Supplementary_Figure_15.png)
 ![Supplementary Figure 16](Supplementary_Figure_16.png)
 ![Supplementary Figure 17](Supplementary_Figure_17.png)
 ![Supplementary Figure 18](Supplementary_Figure_18.png)
 ![Supplementary Figure 19](Supplementary_Figure_19.png)
 ![Supplementary Figure 20](Supplementary_Figure_20.png)
+![Supplementary Figure 21](Supplementary_Figure_21.png)
 
 ## Legend
-Supplementary Figure 15. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification
+Supplementary Figure 16. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification
 with caspofungin exposed proliferative cells. A) PI and SYTO9 distribution functions as well as the gated PI/SYTO9
 2D quantification of untreated proliferative cells grown in rich media. B) PI and SYTO9 distribution functions as well as the
 gated PI/SYTO9 2D quantification of proliferative cells exposed to 0.001ug/mL caspofungin grown in rich media. C) PI and
@@ -20,7 +20,7 @@ exposed to 0.1ug/mL caspofungin grown in rich media. E) PI and SYTO9 distributio
 PI/SYTO9 2D quantification of cells exposed to 1ug/mL caspofungin grown in rich media. F) PI and SYTO9 distribution
 functions as well as the gated PI/SYTO9 2D quantification of cells exposed to 10ug/mL caspofungin grown in rich media.
 
-Supplementary Figure 16. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification
+Supplementary Figure 17. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification
 with micafungin exposed proliferative cells. A) PI and SYTO9 distribution functions as well as the gated PI/SYTO9 2D
 quantification of untreated proliferative cells grown in rich media. B) PI and SYTO9 distribution functions as well as the
 gated PI/SYTO9 2D quantification of proliferative cells exposed to 0.001ug/mL micafungin grown in rich media. C) PI and
@@ -30,7 +30,7 @@ exposed to 0.1ug/mL micafungin grown in rich media. E) PI and SYTO9 distribution
 PI/SYTO9 2D quantification of cells exposed to 1ug/mL micafungin grown in rich media. F) PI and SYTO9 distribution
 functions as well as the gated PI/SYTO9 2D quantification of cells exposed to 10ug/mL micafungin grown in rich media.
 
-Supplementary Figure 17. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification
+Supplementary Figure 18. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification
 with amphotericin B exposed proliferative cells. A) PI and SYTO9 distribution functions as well as the gated PI/SYTO9
 2D quantification of untreated proliferative cells grown in rich media. B) PI and SYTO9 distribution functions as well as the
 gated PI/SYTO9 2D quantification of proliferative cells exposed to 0.001ug/mL amphotericin B grown in rich media. C) PI
@@ -42,7 +42,7 @@ SYTO9 distribution functions as well as the gated PI/SYTO9 2D quantification of 
 grown in rich media. G) PI and SYTO9 distribution functions as well as the gated PI/SYTO9 2D quantification of cells
 exposed to 20ug/mL amphotericin B grown in rich media.
 
-Supplementary Figure 18. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification
+Supplementary Figure 19. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification
 with caspofungin exposed quiescent cells. A) PI and SYTO9 distribution functions as well as the gated PI/SYTO9 2D
 quantification of untreated quiescent cells grown in rich media. B) PI and SYTO9 distribution functions as well as the
 gated PI/SYTO9 2D quantification of quiescent cells exposed to 0.001ug/mL caspofungin grown in rich media. C) PI and
@@ -53,7 +53,7 @@ as the gated PI/SYTO9 2D quantification of quiescent cells exposed to 1ug/mL cas
 SYTO9 distribution functions as well as the gated PI/SYTO9 2D quantification of quiescent cells exposed to 10ug/mL
 caspofungin grown in rich media.
 
-Supplementary Figure 19. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification
+Supplementary Figure 20. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification
 with micafungin exposed quiescent cells. A) PI and SYTO9 distribution functions as well as the gated PI/SYTO9 2D
 quantification of untreated quiescent cells grown in rich media. B) PI and SYTO9 distribution functions as well as the
 gated PI/SYTO9 2D quantification of quiescent cells exposed to 0.001ug/mL micafungin grown in rich media. C) PI and
@@ -64,7 +64,7 @@ the gated PI/SYTO9 2D quantification of quiescent cells exposed to 1ug/mL micafu
 SYTO9 distribution functions as well as the gated PI/SYTO9 2D quantification of quiescent cells exposed to 10ug/mL
 micafungin grown in rich media.
 
-Supplementary Figure 20. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification
+Supplementary Figure 21. Cell viability quantification to validate accuracy of PI/SYTO9 staining quantification
 with amphotericin B exposed quiescent cells. A) PI and SYTO9 distribution functions as well as the gated PI/SYTO9
 2D quantification of untreated quiescent cells grown in rich media. B) PI and SYTO9 distribution functions as well as the
 gated PI/SYTO9 2D quantification of quiescent cells exposed to 0.001ug/mL amphotericin B grown in rich media. C) PI
@@ -81,18 +81,18 @@ All panels are PI histograms, SYTO9 histograms and gated PI × SYTO9 scatter plo
 
 | Figure (panels) | Content | Code (`params$experiment`) | Input data | Source plot page (inferred) | Status |
 |---|---|---|---|---|---|
-| Supp. Fig. 15 (A–F) | Proliferative, caspofungin 0, 0.001–10 µg/mL | `Supplementary_Figures_15-20_antifungal_PI_SYTO9_gating.Rmd` (`Casp_Mica`) | `data/Casp_Mica/` | `PI_SYTO9_grid_2x6_p03.pdf` (Strain1, Caspofungin, exponential) | Image only (raw FCS not distributed); gating documented |
-| Supp. Fig. 16 (A–F) | Proliferative, micafungin | same (`Casp_Mica`) | `data/Casp_Mica/` | `PI_SYTO9_grid_2x6_p04.pdf` (Strain1, Micafungin, exponential) | Image only (raw FCS not distributed); gating documented |
-| Supp. Fig. 17 (A–G) | Proliferative, amphotericin B 0, 0.001–20 µg/mL | same (`AmpB`) | `data/AmpB/` | `PI_SYTO9_grid_2x7_p02.pdf` (Exponential; reversed order, Untreated → 20 µg/mL) | Image only (raw FCS not distributed); gating documented |
-| Supp. Fig. 18 (A–F) | Quiescent, caspofungin | same (`Casp_Mica`) | `data/Casp_Mica/` | `PI_SYTO9_grid_2x6_p11.pdf` (Strain1, Caspofungin, quiescent) | Image only (raw FCS not distributed); gating documented |
-| Supp. Fig. 19 (A–F) | Quiescent, micafungin | same (`Casp_Mica`) | `data/Casp_Mica/` | `PI_SYTO9_grid_2x6_p12.pdf` (Strain1, Micafungin, quiescent) | Image only (raw FCS not distributed); gating documented |
-| Supp. Fig. 20 (A–G) | Quiescent, amphotericin B | same (`AmpB`) | `data/AmpB/` | `PI_SYTO9_grid_2x7_p01.pdf` (Quiescent; reversed order) | Image only (raw FCS not distributed); gating documented |
+| Supp. Fig. 16 (A–F) | Proliferative, caspofungin 0, 0.001–10 µg/mL | `Supplementary_Figures_16-21_antifungal_PI_SYTO9_gating.Rmd` (`Casp_Mica`) | `data/Casp_Mica/` | `PI_SYTO9_grid_2x6_p03.pdf` (Strain1, Caspofungin, exponential) | Image only (raw FCS not distributed); gating documented |
+| Supp. Fig. 17 (A–F) | Proliferative, micafungin | same (`Casp_Mica`) | `data/Casp_Mica/` | `PI_SYTO9_grid_2x6_p04.pdf` (Strain1, Micafungin, exponential) | Image only (raw FCS not distributed); gating documented |
+| Supp. Fig. 18 (A–G) | Proliferative, amphotericin B 0, 0.001–20 µg/mL | same (`AmpB`) | `data/AmpB/` | `PI_SYTO9_grid_2x7_p02.pdf` (Exponential; reversed order, Untreated → 20 µg/mL) | Image only (raw FCS not distributed); gating documented |
+| Supp. Fig. 19 (A–F) | Quiescent, caspofungin | same (`Casp_Mica`) | `data/Casp_Mica/` | `PI_SYTO9_grid_2x6_p11.pdf` (Strain1, Caspofungin, quiescent) | Image only (raw FCS not distributed); gating documented |
+| Supp. Fig. 20 (A–F) | Quiescent, micafungin | same (`Casp_Mica`) | `data/Casp_Mica/` | `PI_SYTO9_grid_2x6_p12.pdf` (Strain1, Micafungin, quiescent) | Image only (raw FCS not distributed); gating documented |
+| Supp. Fig. 21 (A–G) | Quiescent, amphotericin B | same (`AmpB`) | `data/AmpB/` | `PI_SYTO9_grid_2x7_p01.pdf` (Quiescent; reversed order) | Image only (raw FCS not distributed); gating documented |
 
 The right-hand scatter panels correspond to the source `plots/PI_SYTO9_gating_<FCS name>.png` files.
 
 ## How to run
 From this folder:
-`Rscript -e 'rmarkdown::render("Supplementary_Figures_15-20_antifungal_PI_SYTO9_gating.Rmd", params = list(experiment = "Casp_Mica"))'`
+`Rscript -e 'rmarkdown::render("Supplementary_Figures_16-21_antifungal_PI_SYTO9_gating.Rmd", params = list(experiment = "Casp_Mica"))'`
 (or `experiment = "AmpB"`). Without FCS files, rendering only prints the experiment details; the gating and plotting chunks are `eval = FALSE`. Outputs go to `output/`.
 Required packages: rmarkdown. The gating section needs CytoExploreR, flowCore, flowWorkspace, openCyto, cowplot and tidyverse, plus the FCS files in `FCS_files/`.
 

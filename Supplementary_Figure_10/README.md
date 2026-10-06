@@ -1,17 +1,20 @@
-# Supplementary Figure 10. Molecular crowding profiles of SC5314 nucleus and cytoplasm in rich and minimal media
+# Supplementary Figure 10. Differential gene expression analysis of media conditions
 
-**Status:** Placeholder – data to be added
+**Status:** Being overhauled – no code in this folder yet
+
+![Supplementary Figure 10](Supplementary_Figure_10.png)
 
 ## Legend
 
-**Supplementary Figure 10.** Molecular Crowding Profiles of SC5314 Nucleus and Cytoplasm in Rich and Minimal Media. A) The frequency distribution of cytoplasmic 40nm-GEMs trajectory length in rich media. Proliferative: n = 1434 trajectories; quiescent: n = 1280 trajectories. B) The frequency distribution of nuclear 40nm-GEMs trajectory length in rich media. Proliferative: n = 1570 trajectories; quiescent: n = 1567 trajectories. C) Ensemble-averaged mean-squared displacement (MSD) versus time delay (τ), log10 scale, for cytoplasmic GEMs in cells growing in rich medium. Proliferative: n = 111 cells; quiescent: n = 80 cells. D) MSD vs. τ plot for cytoplasmic GEMs in cells growing in minimal medium. Proliferative: 114 cells; quiescent: 58 cells. E) MSD vs. τ for nuclear GEMs in cells growing in rich medium. Proliferative: n = 139 cells; quiescent: n = 150 cells. F) MSD vs. τ for cytoplasmic GEMs in cells growing in rich medium. Proliferative: n = 140 cells; quiescent: n = 136 cells. For the MSD quantifications, a linear model was fit to determine the anomalous exponent α values for 40nm-GEMs in C. albicans cells. Median ± 95% confidence interval.
+**Supplementary Figure 10.** Differential gene expression analysis of media conditions . A) Heatmap of the relative log2-transformed fold changes of gene expression in rich media compared to minimal media at each time point. The data were clustered using hierarchical clustering. Gene Set Enrichment Analysis (GSEA) was used to find enriched GO terms at B) 2 hours post-inoculation, C) 5 hours post-inoculation, D) 8 hours post-inoculation, E) 11 hours post-inoculation, F) 24 hours post-inoculation, and G) 48 hours post-inoculation. Only significant GO terms (adjusted p-value < 0.05 ) are shown.
 
 ## Panels
 
 | Panel | Content | Code | Input data | Status |
 |---|---|---|---|---|
-| all | 40nm-GEMs trajectory lengths and MSD vs τ | – | – | Placeholder – data to be added |
+| A | Rich vs minimal log2FC heatmap per time point | – | – | Being overhauled |
+| B–G | GSEA of rich vs minimal at 2–48 h | – | – | Being overhauled |
 
 ## Notes
 
-40nm-GEMs tracking data are not on hand.
+This figure is being overhauled; the image shown is the original-submission version, where it was Supplementary Figure 9 (the panel labels in the image are unchanged).

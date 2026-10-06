@@ -1,5 +1,5 @@
 ---
-title: "Supplementary Figure 14: PI/SYTO9 viability controls with heat-killed cells"
+title: "Supplementary Figure 15: PI/SYTO9 viability controls with heat-killed cells"
 author: "Ozan Berk Imir"
 date: "`r Sys.Date()`"
 output:
@@ -29,7 +29,7 @@ out_path <- function(...) file.path(params$out_dir, ...)
 
 ## Figure legend
 
-**Supplementary Figure 14. Validation of PI/SYTO9 staining and flow cytometry to measure viability
+**Supplementary Figure 15. Validation of PI/SYTO9 staining and flow cytometry to measure viability
 of proliferative and quiescent cells.** In each panel the distribution of PI (left panel), SYTO9
 (middle panel) and the scatter plot of PI versus SYTO9 used to define flow cytometry gates is
 displayed for A) untreated proliferative cells grown (100% viability expected), B) a 50:50 mixture of

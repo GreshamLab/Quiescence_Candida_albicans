@@ -1,0 +1,238 @@
+---
+title: "Supplementary Figure 22: PI/SYTO9 gating of the exponential and quiescent samples in Figure 6A"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+  fcs_root: "/scratch/obi203/data/Cytek Flow Cytometry"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(f) file.path(params$data_dir, f)
+out_path <- function(...) file.path(params$out_dir, ...)
+fcs_available <- dir.exists(params$fcs_root)
+```
+
+## Figure legend
+
+**Supplementary Figure 22.** Cell viability quantification of the samples in Figure 6A by PI/SYTO9
+staining. A–D) Exponential cells (untreated, rich media) of WT (SC5314) and *nrg1*Δ, *ndt80*Δ and
+*stp4*Δ. E–H) Quiescent cells (Day 3, rich media) of the same strains. Each row shows the PI and
+SYTO9 distribution functions of single cells (one line per biological replicate, n = 3) and the
+gated PI/SYTO9 2D quantification (three replicates pooled). Gate labels give the mean percentage of
+single cells in the Live_cells and Dead_cells gates. Viability (Live / (Live + Dead), mean of three
+replicates) is shown in the top-left corner.
+
+(Full legend text is in the folder README.)
+
+## Input data
+
+The 24 FCS files are the ones behind Figure 6A. They come from two experiments:
+
+| File | Description |
+|---|---|
+| `data/Figure_6A_samples.csv` | 24 samples: state, knockout, replicate, FCS file, SYTO9 channel, gating template and the saved Live/Dead counts |
+| `data/cytek_gating_OzanImir_20260809_v1.csv` | Gating template, exponential samples (SYTO9 = B7-A) |
+| `data/cytek_gating_OzanImir_20260401_v1.csv` | Gating template, quiescent samples (SYTO9 = B3-A) |
+
+* Exponential: untreated rich-media samples of `Knockout_Quiescence_Viability_4_ValidationExtended/Proliferative`
+  (6HC group; NRG1 uses its DR-group untreated samples, as in Figure 6A).
+* Quiescent: Day 3 samples of `Knockout_Quiescence_Viability_3_Validation`.
+
+The raw FCS files are not distributed. They are read from `params$fcs_root`. If that folder is
+missing, the gating and plotting chunks are skipped.
+
+```{r samples}
+samples <- read.csv(data_path("Figure_6A_samples.csv"))
+samples[, c("state", "knockout", "replicate", "syto9_channel", "Live_cells", "Dead_cells")]
+```
+
+## FCS reading and gating
+
+flowCore, flowWorkspace and CytoExploreR are not needed. The FCS files are read directly, and the
+saved CytoExploreR gating templates are applied to them.
+
+* `cyto_transformer_arcsinh()` produced the flowJo arcsinh transform with its defaults
+  (T = 262144, M = 4.5, A = 0). The `cofactor` argument in the original notebooks had no effect.
+  Gate coordinates are in that transformed space.
+* The gating is Cells (FSC-A/SSC-A) > Single_cells (SSC-A/SSC-H) > Live_cells and Dead_cells
+  (YG4-A = PI vs SYTO9).
+* The next chunk checks the Live/Dead counts against the saved per-sample tables.
+
+```{r functions}
+library(tidyverse)
+library(cowplot)
+
+# Minimal FCS 3.x reader (float32 list-mode data, as written by the Cytek Aurora)
+read_fcs <- function(path) {
+  con <- file(path, "rb"); on.exit(close(con))
+  hdr <- readChar(con, 58, useBytes = TRUE)
+  ts <- as.integer(substr(hdr, 11, 18)); te <- as.integer(substr(hdr, 19, 26))
+  seek(con, ts); txt <- readChar(con, te - ts + 1, useBytes = TRUE)
+  d <- substr(txt, 1, 1); parts <- strsplit(substring(txt, 2), d, fixed = TRUE)[[1]]
+  kw <- setNames(parts[seq(2, length(parts), 2)], toupper(parts[seq(1, length(parts), 2)]))
+  stopifnot(kw[["$DATATYPE"]] == "F")
+  npar <- as.integer(kw[["$PAR"]]); ntot <- as.integer(kw[["$TOT"]])
+  endian <- if (kw[["$BYTEORD"]] == "1,2,3,4") "little" else "big"
+  seek(con, as.numeric(trimws(kw[["$BEGINDATA"]])))
+  m <- matrix(readBin(con, "numeric", n = npar * ntot, size = 4, endian = endian), ncol = npar, byrow = TRUE)
+  colnames(m) <- vapply(seq_len(npar), function(i) kw[[paste0("$P", i, "N")]], "")
+  m
+}
+
+# flowJo arcsinh as used by CytoExploreR (T = 262144, M = 4.5, A = 0)
+fasinh <- function(x, t = 262144, m = 4.5) asinh(x * sinh(m * log(10)) / t) / (m * log(10))
+
+# Polygon gates from a CytoExploreR gatingTemplate
+parse_template <- function(csv) {
+  gt <- read.csv(csv, stringsAsFactors = FALSE)
+  setNames(lapply(seq_len(nrow(gt)), function(i) {
+    nums <- as.numeric(strsplit(sub(".*boundaries = structure\\(c\\(([^)]*)\\).*", "\\1",
+                                    gt$gating_args[i]), ",")[[1]])
+    dims <- strsplit(gt$dims[i], ",")[[1]]
+    list(parent = gt$parent[i], dims = dims, poly = matrix(nums, ncol = 2, dimnames = list(NULL, dims)))
+  }), gt$alias)
+}
+
+apply_gates <- function(tm, gates) {
+  keep <- list(root = rep(TRUE, nrow(tm)))
+  for (g in names(gates)) {
+    G <- gates[[g]]
+    inside <- sp::point.in.polygon(tm[, G$dims[1]], tm[, G$dims[2]], G$poly[, 1], G$poly[, 2]) > 0
+    keep[[g]] <- keep[[G$parent]] & inside
+  }
+  keep
+}
+```
+
+```{r gating, eval = fcs_available}
+templates <- lapply(setNames(nm = unique(samples$gating_template)), function(f) parse_template(data_path(f)))
+
+events <- vector("list", nrow(samples))
+for (i in seq_len(nrow(samples))) {
+  s <- samples[i, ]
+  raw <- read_fcs(file.path(params$fcs_root, s$fcs_subdir, s$fcs_file))
+  tm <- raw
+  for (ch in c("FSC-A", "FSC-H", "SSC-A", "SSC-H", "YG4-A", s$syto9_channel)) tm[, ch] <- fasinh(raw[, ch])
+  k <- apply_gates(tm, templates[[s$gating_template]])
+  sc <- k$Single_cells
+  events[[i]] <- tibble(state = s$state, knockout = s$knockout, replicate = s$replicate,
+                        PI = raw[sc, "YG4-A"], SYTO9 = raw[sc, s$syto9_channel],
+                        PI_t = tm[sc, "YG4-A"], SYTO9_t = tm[sc, s$syto9_channel],
+                        gate = case_when(k$Live_cells[sc] ~ "Live_cells", k$Dead_cells[sc] ~ "Dead_cells",
+                                         TRUE ~ "ungated"))
+  samples$Live_recomputed[i] <- sum(k$Live_cells)
+  samples$Dead_recomputed[i] <- sum(k$Dead_cells)
+  samples$Single_cells[i] <- sum(sc)
+}
+events <- bind_rows(events)
+
+# The gating must reproduce the saved counts behind Figure 6A exactly
+stopifnot(all(samples$Live_recomputed == samples$Live_cells), all(samples$Dead_recomputed == samples$Dead_cells))
+samples %>% mutate(viability = Live_cells / (Live_cells + Dead_cells)) %>%
+  select(state, knockout, replicate, Single_cells, Live_cells, Dead_cells, viability)
+```
+
+## Figure
+
+```{r figure, eval = fcs_available, fig.width = 10.5, fig.height = 21}
+theme_set(theme_cowplot(font_size = 11))
+strains <- c("WT", "NRG1", "NDT80", "STP4")
+rep_cols <- c(`1` = "#000000", `2` = "#0072B2", `3` = "#D55E00")
+dens_cols <- c("#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow", "#FF7F00", "red", "#7F0000")
+
+# Per-sample gate percentages (of single cells), then mean of the three replicates
+gate_pct <- events %>% count(state, knockout, replicate, gate) %>%
+  group_by(state, knockout, replicate) %>% mutate(pct = 100 * n / sum(n)) %>%
+  group_by(state, knockout, gate) %>% summarise(pct = mean(pct), .groups = "drop")
+viab <- samples %>% mutate(v = 100 * Live_cells / (Live_cells + Dead_cells)) %>%
+  group_by(state, knockout) %>% summarise(v = mean(v), .groups = "drop")
+
+hist_panel <- function(df, var, xlabel) {
+  df <- df[df[[var]] > 0 & is.finite(df[[var]]), ]
+  ggplot(df, aes(.data[[var]], colour = factor(replicate))) +
+    geom_freqpoly(bins = 200, linewidth = 0.35) +
+    scale_x_log10(limits = c(1, 1e6), breaks = 10^c(1, 3, 5), labels = c("10", "1000", "100000")) +
+    annotation_logticks(sides = "b", linewidth = 0.25) +
+    scale_colour_manual(values = rep_cols, name = "Replicate") +
+    labs(x = xlabel, y = "Count") +
+    theme(legend.position = "none")
+}
+
+# Axis breaks for the transformed scale, labelled in raw units
+br_raw <- c(-1e2, 0, 1e2, 1e3, 1e4, 1e5)
+br_lab <- c(expression(-10^2), "0", expression(10^2), expression(10^3), expression(10^4), expression(10^5))
+lims <- c(fasinh(-400), 1)
+
+scatter_panel <- function(df, gates, st, ko) {
+  bx <- cut(df$PI_t, 256); by <- cut(df$SYTO9_t, 256)
+  df$dens <- ave(rep(1, nrow(df)), bx, by, FUN = length)
+  df <- df[order(df$dens), ]
+  polys <- bind_rows(lapply(c("Live_cells", "Dead_cells"), function(g)
+    tibble(gate = g, x = gates[[g]]$poly[, 1], y = gates[[g]]$poly[, 2])))
+  labs_df <- polys %>% group_by(gate) %>% summarise(x = mean(range(x)), y = mean(range(y))) %>%
+    left_join(filter(gate_pct, state == st, knockout == ko), by = "gate") %>%
+    mutate(label = sprintf("%s\n%.2f %%", gate, coalesce(pct, 0)))
+  v <- viab$v[viab$state == st & viab$knockout == ko]
+  ggplot(df, aes(PI_t, SYTO9_t)) +
+    geom_point(aes(colour = dens), size = 0.05, shape = 16) +
+    scale_colour_gradientn(colours = dens_cols, trans = "log10", guide = "none") +
+    geom_polygon(data = polys, aes(x, y, group = gate), inherit.aes = FALSE,
+                 fill = NA, colour = "red", linewidth = 0.6) +
+    geom_label(data = labs_df, aes(x, y, label = label), inherit.aes = FALSE, size = 2.6,
+               fontface = "bold", lineheight = 0.9, fill = alpha("white", 0.6), label.size = 0,
+               label.padding = unit(0.08, "lines")) +
+    annotate("text", x = lims[1] + 0.02, y = lims[2] - 0.02, hjust = 0, vjust = 1, size = 2.8,
+             label = sprintf("viability %.1f %%", v)) +
+    scale_x_continuous(breaks = fasinh(br_raw), labels = br_lab) +
+    scale_y_continuous(breaks = fasinh(br_raw), labels = br_lab) +
+    coord_cartesian(xlim = lims, ylim = lims, expand = FALSE) +
+    labs(x = "PI", y = "SYTO9") +
+    theme(panel.border = element_rect(colour = "black", fill = NA, linewidth = 0.5),
+          axis.line = element_blank(), axis.text = element_text(size = 8))
+}
+
+strain_lab <- function(ko) if (ko == "WT") "WT" else bquote(italic(.(ko)))
+rows <- list(); k <- 0
+for (st in c("Exponential", "Quiescent")) {
+  tmpl <- templates[[unique(samples$gating_template[samples$state == st])]]
+  for (ko in strains) {
+    k <- k + 1
+    df <- filter(events, state == st, knockout == ko)
+    row <- plot_grid(hist_panel(df, "PI", "PI"), hist_panel(df, "SYTO9", "SYTO9"),
+                     scatter_panel(df, tmpl, st, ko),
+                     ncol = 3, rel_widths = c(1, 1, 0.9), align = "h", axis = "tb")
+    title <- ggdraw() + draw_label(strain_lab(ko), x = 0.035, hjust = 0, size = 12, fontface = "bold")
+    rows[[k]] <- plot_grid(title, row, ncol = 1, rel_heights = c(0.12, 1),
+                           labels = LETTERS[k], label_size = 18, label_x = 0, hjust = 0)
+  }
+}
+
+section <- function(txt) ggdraw() + draw_label(txt, x = 0, hjust = 0, size = 14, fontface = "bold")
+legend <- get_legend(hist_panel(filter(events, knockout == "WT"), "PI", "PI") +
+                       theme(legend.position = "top", legend.justification = "left") +
+                       guides(colour = guide_legend(override.aes = list(linewidth = 1))))
+fig <- plot_grid(legend,
+                 section("Exponential (untreated, rich media)"), plot_grid(plotlist = rows[1:4], ncol = 1),
+                 section("Quiescent (Day 3, rich media)"), plot_grid(plotlist = rows[5:8], ncol = 1),
+                 ncol = 1, rel_heights = c(0.25, 0.3, 4 * 2.4, 0.3, 4 * 2.4))
+fig
+ggsave(out_path("Supplementary_Figure_22.png"), fig, width = 10.5, height = 21, units = "in", dpi = 300, bg = "white")
+write.csv(samples %>% mutate(viability = Live_cells / (Live_cells + Dead_cells)) %>%
+            select(state, knockout, replicate, fcs_file, Single_cells, Live_cells, Dead_cells, viability),
+          out_path("Supplementary_Figure_22_gate_counts.csv"), row.names = FALSE)
+```
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

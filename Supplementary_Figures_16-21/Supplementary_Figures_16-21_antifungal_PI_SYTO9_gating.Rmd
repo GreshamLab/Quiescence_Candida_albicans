@@ -1,5 +1,5 @@
 ---
-title: "Supplementary Figures 15-20: PI/SYTO9 gating of SC5314 exposed to caspofungin, micafungin and amphotericin B"
+title: "Supplementary Figures 16-21: PI/SYTO9 gating of SC5314 exposed to caspofungin, micafungin and amphotericin B"
 author: "Ozan Berk Imir"
 date: "`r Sys.Date()`"
 output:
@@ -10,7 +10,7 @@ output:
 params:
   data_dir: "data"
   out_dir: "output"
-  experiment: "Casp_Mica"   # "Casp_Mica" (Supp. Figs 15, 16, 18, 19) or "AmpB" (Supp. Figs 17, 20)
+  experiment: "Casp_Mica"   # "Casp_Mica" (Supp. Figs 16, 17, 19, 20) or "AmpB" (Supp. Figs 18, 21)
   fcs_dir: "FCS_files"
 ---
 
@@ -34,21 +34,21 @@ settings <- list(
 
 ## Figure legend
 
-**Supplementary Figure 15.** Cell viability quantification to validate accuracy of PI/SYTO9 staining
+**Supplementary Figure 16.** Cell viability quantification to validate accuracy of PI/SYTO9 staining
 quantification with caspofungin exposed proliferative cells. A) untreated; B–F) 0.001, 0.01, 0.1, 1
 and 10 ug/mL caspofungin. Each panel shows PI and SYTO9 distribution functions as well as the gated
 PI/SYTO9 2D quantification; cells grown in rich media.
 
-**Supplementary Figure 16.** As Supplementary Figure 15, with micafungin exposed proliferative cells.
+**Supplementary Figure 17.** As Supplementary Figure 16, with micafungin exposed proliferative cells.
 
-**Supplementary Figure 17.** As Supplementary Figure 15, with amphotericin B exposed proliferative
+**Supplementary Figure 18.** As Supplementary Figure 16, with amphotericin B exposed proliferative
 cells (A untreated; B–G 0.001, 0.01, 0.1, 1, 10 and 20 ug/mL amphotericin B).
 
-**Supplementary Figure 18.** As Supplementary Figure 15, with caspofungin exposed quiescent cells.
+**Supplementary Figure 19.** As Supplementary Figure 16, with caspofungin exposed quiescent cells.
 
-**Supplementary Figure 19.** As Supplementary Figure 15, with micafungin exposed quiescent cells.
+**Supplementary Figure 20.** As Supplementary Figure 16, with micafungin exposed quiescent cells.
 
-**Supplementary Figure 20.** As Supplementary Figure 17, with amphotericin B exposed quiescent cells.
+**Supplementary Figure 21.** As Supplementary Figure 18, with amphotericin B exposed quiescent cells.
 
 (Full legend text is in the folder README.)
 

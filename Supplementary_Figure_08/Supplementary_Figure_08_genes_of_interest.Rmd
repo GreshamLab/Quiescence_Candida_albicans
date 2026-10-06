@@ -1,0 +1,135 @@
+---
+title: "Supplementary Figure 8: Expression of selected genes in rich and minimal medium"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+  late_time: 24            # first quiescent time point (shaded)
+  # Genes of interest from the analysis (params$genes_of_interest), arranged in two rows by function
+  gene_rows: !r list("Morphogenesis regulators and hypha-specific genes" = c("EFG1", "NRG1", "TUP1", "HWP1", "ALS3"), "Carbon metabolism (gluconeogenesis, glyoxylate cycle, glucose uptake and glycolysis)" = c("ICL1", "PCK1", "FBP1", "HGT1", "TDH3"))
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 13, fig.height = 7.5)
+suppressPackageStartupMessages({
+  library(data.table)
+  library(ggplot2)
+  library(ggtext)
+  library(patchwork)
+})
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(f) file.path(params$data_dir, f)
+out_path <- function(...) file.path(params$out_dir, ...)
+```
+
+## Figure legend
+
+**Supplementary Figure 8. Expression of selected genes over the time course in rich and minimal medium.**
+DESeq2-normalized counts (+1, log~10~ scale) of genes involved in morphogenesis (top row) and in carbon
+metabolism (bottom row) in wild-type SC5314 grown in rich (YPD) or carbon-limited minimal medium. Points
+are biological replicates; lines join the mean of the log-scaled values at each time point. Time is on a
+log~2~ scale. The shaded area marks the quiescent phase (`r params$late_time`–72 h). Triangles are the
+additional rich 72 h libraries from a second sequencing run (HJT3JDRX7), which have low mRNA depth. The
+temporal cluster of each gene (Supplementary Figure 9, Figure 4B) is given under its name.
+
+## Input data
+
+The inputs in `data/` are outputs of
+`CandidaTFKO5_WT_72h/analysis/WT_Rich_vs_Minimal_timecourse_DESeq2_ORA.Rmd`
+(`new_72h_mode = "add"`, `n_clusters = 8`). This figure is the "Genes of interest" plot of that analysis,
+restyled; the genes are the analysis' `genes_of_interest`.
+
+| File | Description |
+|---|---|
+| `normalized_counts.csv.gz` | DESeq2 size-factor-normalized counts, 46 libraries (WT, rich and minimal, 2–72 h) |
+| `timecourse_gene_clusters.csv` | Temporal cluster and LRT results of the time-responsive genes |
+
+```{r load}
+nc <- fread(data_path("normalized_counts.csv.gz"), data.table = FALSE)
+nmat <- as.matrix(nc[, -1]); rownames(nmat) <- nc[[1]]
+clusters <- fread(data_path("timecourse_gene_clusters.csv"))
+
+# Sample annotation, parsed from the library names as in the analysis.
+# CandidaTFKO5_WT_72h-* are the Rich 72 h libraries from run HJT3JDRX7.
+new_run <- grepl("^CandidaTFKO5_WT_72h", colnames(nmat))
+samples <- data.table(
+  sample = colnames(nmat),
+  medium = ifelse(grepl("^WT_C_", colnames(nmat)), "Minimal", "Rich"),
+  time = ifelse(new_run, 72L, as.integer(sub("^WT_[YC]_(\\d+)-\\d$", "\\1", colnames(nmat)))),
+  batch = ifelse(new_run, "HJT3JDRX7", "prior"))
+times <- sort(unique(samples$time))
+samples[, .N, by = .(medium, time)][order(medium, time)]
+```
+
+```{r genes}
+goi <- unlist(params$gene_rows, use.names = FALSE)
+stopifnot(all(goi %in% rownames(nmat)))
+gene_info <- clusters[match(goi, gene), .(gene, cluster, time_Rich, time_Minimal, medium_x_time,
+                                          padj_medium_x_time = signif(padj_medium_x_time, 2))]
+gene_info[, gene := goi]  # keep genes that are not time-responsive (cluster NA)
+gene_info
+
+expr <- melt(data.table(gene = goi, nmat[goi, , drop = FALSE]), id.vars = "gene",
+             variable.name = "sample", value.name = "count", variable.factor = FALSE)
+expr <- merge(expr, samples, by = "sample")
+expr <- merge(expr, gene_info[, .(gene, cluster, medium_x_time)], by = "gene")
+fwrite(expr[order(match(gene, goi), medium, time, sample)], out_path("Supplementary_Figure_08_counts.csv"))
+```
+
+## Figure
+
+```{r plot}
+medium_cols <- c(Rich = "#D9934E", Minimal = "#8C6BB1")  # Figure 4 hues; Minimal darkened for lines
+strip_label <- function(g) {
+  i <- match(g, gene_info$gene)
+  sprintf("*%s*<br><span style='font-size:9pt;color:#555555'>%s</span>", g,
+          ifelse(is.na(gene_info$cluster[i]), "not time-responsive", paste("cluster", gene_info$cluster[i])))
+}
+
+goi_row <- function(genes) {
+  d <- expr[gene %in% genes]
+  d[, `:=`(facet = factor(strip_label(gene), levels = strip_label(genes)),
+           medium = factor(medium, levels = names(medium_cols)))]
+  ggplot(d, aes(time, count + 1, colour = medium)) +
+    # shade from midway (log scale) between the last proliferative and the first quiescent time point;
+    # ymin = 0 becomes -Inf on the log10 axis
+    annotate("rect", xmin = sqrt(params$late_time * max(times[times < params$late_time])), xmax = Inf,
+             ymin = 0, ymax = Inf, fill = "grey92") +
+    stat_summary(aes(group = medium), fun = mean, geom = "line", linewidth = 0.8) +
+    geom_point(aes(shape = batch), size = 1.7, alpha = 0.8,
+               position = position_dodge(width = 0.12)) +
+    scale_colour_manual(values = medium_cols, name = "Medium") +
+    scale_shape_manual(values = c(prior = 16, HJT3JDRX7 = 2), guide = "none") +
+    scale_x_continuous(trans = "log2", breaks = times) +
+    scale_y_log10(labels = scales::label_number(scale_cut = scales::cut_short_scale())) +
+    facet_wrap(~ facet, nrow = 1, scales = "free_y") +
+    labs(x = "Time (h)", y = "Normalized count + 1") +
+    theme_classic(base_size = 12) +
+    theme(strip.background = element_blank(), strip.text = element_markdown(size = 12, lineheight = 1.1),
+          axis.text.x = element_text(size = 8.5),
+          panel.spacing.x = unit(4, "mm"), legend.position = "bottom")
+}
+
+rows <- lapply(params$gene_rows, goi_row)
+fig <- wrap_plots(rows, ncol = 1) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(legend.position = "bottom", plot.tag = element_text(size = 18, face = "bold"))
+fig
+
+ggsave(out_path("Supplementary_Figure_08.pdf"), fig, width = 13, height = 7.5, device = cairo_pdf)
+ggsave(out_path("Supplementary_Figure_08.png"), fig, width = 13, height = 7.5, dpi = 300)
+```
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

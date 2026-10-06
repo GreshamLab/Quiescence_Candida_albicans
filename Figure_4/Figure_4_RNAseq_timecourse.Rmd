@@ -1,0 +1,362 @@
+---
+title: "Figure 4: Gene expression profiling in proliferative and quiescent cells"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+  n_clusters: 8
+  rank_medium: "Rich"      # medium used to pick the top clusters and top genes
+  rank_time: 72            # time point compared with 2 h to pick the top clusters and top genes
+  n_top_clusters: 3
+  n_top_genes: 10
+  lfc_limit: 5             # colour scale limit for the panel B heatmap
+  autophagy_terms: !r c("GO:0006914", "GO:0016236", "GO:0000045", "GO:0000422", "GO:0000423")  # panel D GO terms
+  autophagy_highlight: "GO:0000045"  # autophagosome assembly; highlighted in panel D from late_time on
+  late_time: 24            # first time point treated as quiescent (shaded in panels C and D)
+  autophagy_genes: !r c("AUT7", "ATG1", "APG7", "ATG9", "ATG15", "PRB1")  # panel D trajectories
+  highlight_gene: "AUT7"   # previously reported candidate (Atg8 orthologue), stained in this study
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 10, fig.height = 7)
+suppressPackageStartupMessages({
+  library(data.table)
+  library(ggplot2)
+  library(ggrepel)
+  library(ggtext)
+  library(ComplexHeatmap)
+  library(circlize)
+  library(patchwork)
+  library(png)
+  library(grid)
+})
+set.seed(1)
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(f) file.path(params$data_dir, f)
+out_path <- function(...) file.path(params$out_dir, ...)
+```
+
+## Figure legend
+
+**Figure 4. Gene expression profiling in proliferative and quiescent *Candida albicans* cells.**
+A) Experimental design, sequencing pipeline, and computational strategy employed to quantify
+transcript level changes across time. B) Hierarchical clustering defined 8 clusters that are
+annotated using the most significant over-represented GO terms (p < 0.05). C) Expression of the
+10 most strongly induced genes (`r params$rank_medium` `r params$rank_time` h vs 2 h) in each of
+the three clusters with the highest induction in quiescence. D) Autophagy is induced
+on entry into quiescence. Left, GO over-representation of autophagy terms among genes up-regulated at
+each time point vs 2 h (padj < 0.05, log2FC ≥ 1) in rich and minimal medium; open grey circles, not
+significant. Autophagosome assembly is highlighted from `r params$late_time` h on. Right, log2 fold change
+vs 2 h of core autophagy genes in rich medium; *AUT7* (Atg8), a previously reported candidate that was also examined
+by staining, is highlighted.
+
+## Input data
+
+All inputs are in `data/`. Except for the panel A schematic, they are outputs of
+`CandidaTFKO5_WT_72h/analysis/WT_Rich_vs_Minimal_timecourse_DESeq2_ORA.Rmd`
+(`new_72h_mode = "add"`, `n_clusters = 8`, GO BP).
+
+| File | Description |
+|---|---|
+| `Figure_4A_schematic.png` | Panel A schematic, cropped from the original-submission `Figure_4.png` |
+| `vst_batch_corrected.csv.gz` | DESeq2 VST, sequencing batch removed, 45 libraries (WT, rich and minimal, 2–72 h) |
+| `timecourse_gene_clusters.csv` | Cluster assignment of the time-responsive genes (LRT padj < 0.05 in either medium) |
+| `DESeq2_time_vs_2h.csv.gz` | Each time point vs 2 h within each medium; ashr-shrunken log2FC and padj |
+| `ORA_GO_timecourse_clusters.csv` | GO BP over-representation per cluster (BH-adjusted p < 0.05) |
+| `ORA_GO_contrasts_time_vs_2h.csv` | GO BP over-representation of the genes up or down at each time point vs 2 h within each medium (BH-adjusted p < 0.05) |
+
+The raw reads are available from SRA (PRJNA1271226).
+
+```{r load}
+vst <- fread(data_path("vst_batch_corrected.csv.gz"), data.table = FALSE)
+vmat <- as.matrix(vst[, -1]); rownames(vmat) <- vst[[1]]
+clusters <- fread(data_path("timecourse_gene_clusters.csv"), data.table = FALSE)
+de <- fread(data_path("DESeq2_time_vs_2h.csv.gz"))
+ora <- fread(data_path("ORA_GO_timecourse_clusters.csv"))
+ora_time <- fread(data_path("ORA_GO_contrasts_time_vs_2h.csv"))
+
+# Sample groups. CandidaTFKO5_WT_72h-* are the Rich 72 h libraries from run HJT3JDRX7.
+sample_medium <- ifelse(grepl("^WT_C_", colnames(vmat)), "Minimal", "Rich")
+sample_time <- ifelse(grepl("^CandidaTFKO5_WT_72h", colnames(vmat)), 72L,
+                      as.integer(sub("^WT_[YC]_(\\d+)-\\d$", "\\1", colnames(vmat))))
+times <- sort(unique(sample_time))
+media <- c("Rich", "Minimal")
+group_levels <- paste(rep(media, each = length(times)), times, sep = "_")
+sample_group <- factor(paste(sample_medium, sample_time, sep = "_"), levels = group_levels)
+table(sample_medium, sample_time)
+```
+
+## Clusters and their GO annotation
+
+The clustering is rebuilt here so that panel B can show the dendrogram. As in the analysis, VST values
+of the time-responsive genes are averaged per medium × time group, z-scored across all 14 groups and
+clustered with Ward.D2. Clusters are numbered by the time of their mean peak in rich medium. The check
+below confirms the result is identical to the saved cluster assignment.
+
+```{r clusters}
+genes <- clusters$gene
+gmeans <- sapply(group_levels, function(g) rowMeans(vmat[genes, sample_group == g, drop = FALSE]))
+z <- t(scale(t(gmeans)))
+z <- z[complete.cases(z), ]
+hc <- hclust(dist(z), method = "ward.D2")
+cl <- cutree(hc, k = params$n_clusters)
+peak <- tapply(seq_along(cl), cl, function(i) which.max(colMeans(z[i, grep("^Rich", colnames(z)), drop = FALSE])))
+cl <- match(cl, order(peak)); names(cl) <- rownames(z)
+stopifnot(identical(unname(cl[clusters$gene]), clusters$cluster))
+table(cluster = cl)
+```
+
+Each cluster is labelled with a short summary of its most significant GO terms. The top terms are
+listed below so the labels can be checked against the ORA results.
+
+```{r cluster-labels}
+ora[, cluster := as.integer(sub("^C", "", Cluster))]
+ora[order(cluster, p.adjust), head(.SD, 4), by = cluster][
+  , .(cluster, Description, Count, FoldEnrichment = round(FoldEnrichment, 1), p.adjust = signif(p.adjust, 2))]
+
+cluster_annotation <- c(
+  "1" = "Translation & amino acid biosynthesis",
+  "2" = "DNA replication & cell cycle",
+  "3" = "Ribosome biogenesis & rRNA processing",
+  "4" = "Golgi vesicle transport & ATP synthesis",
+  "5" = "Small molecule & organic acid catabolism",
+  "6" = "Peroxisome & vacuole organization",
+  "7" = "Translational elongation & pheromone response",
+  "8" = "Transport, cell adhesion & biofilm formation"
+)
+cluster_cols <- setNames(c("#E7B3BC", "#8FB3D9", "#B7D98C", "#C9B3D9",
+                           "#E8794A", "#2A9D8F", "#B8B8B8", "#C0392B"), 1:params$n_clusters)
+```
+
+## Top clusters and genes
+
+The top clusters are the `r params$n_top_clusters` clusters with the highest mean log2 fold change at
+`r params$rank_medium` `r params$rank_time` h vs 2 h. In each of them, the top genes are those significantly
+up-regulated in that comparison (padj < 0.05, log2FC ≥ 1), ranked by log2 fold change.
+
+```{r top-genes}
+de <- merge(de, data.table(gene = names(cl), cluster = cl), by = "gene")
+# 2 h is the reference, so its log2FC vs 2 h is zero
+de <- rbind(unique(de[, .(gene, medium, cluster)])[, `:=`(time = times[1], log2FC = 0, sig = FALSE)],
+            de, fill = TRUE)
+
+rank_de <- de[medium == params$rank_medium & time == params$rank_time]
+cluster_rank <- rank_de[, .(mean_log2FC = mean(log2FC), n_up = sum(sig & log2FC > 0), n_genes = .N),
+                        by = cluster][order(-mean_log2FC)]
+cluster_rank
+top_clusters <- head(cluster_rank$cluster, params$n_top_clusters)
+
+top_genes <- rank_de[cluster %in% top_clusters & sig & log2FC > 0][
+  order(-log2FC), head(.SD, params$n_top_genes), by = cluster]
+gff <- setNames(sub("_A$", "", clusters$gff_id), clusters$gene)
+top_genes[, label := ifelse(grepl("^CAALFM_", gene), gff[gene], gene)]
+top_genes[, .(cluster, gene, label, log2FC = round(log2FC, 2), padj = signif(padj, 2))]
+fwrite(top_genes, out_path("Figure_4C_top_genes.csv"))
+```
+
+## Panel B: heatmap
+
+log2 fold change of each time point vs 2 h within each medium (2 h is 0 by definition). Rows follow
+the dendrogram; the three top clusters are labelled in bold.
+
+```{r panel-b, fig.width = 10, fig.height = 13}
+lfc <- dcast(de[medium %in% media], gene ~ medium + time, value.var = "log2FC")
+lfc_mat <- as.matrix(lfc[, -1]); rownames(lfc_mat) <- lfc$gene
+lfc_mat <- lfc_mat[rownames(z), group_levels]
+col_medium <- factor(sub("_.*", "", colnames(lfc_mat)), levels = media)
+medium_cols <- c(Rich = "#D9934E", Minimal = "#C7B3DB")
+
+# With a dendrogram and row_split = k, ComplexHeatmap cuts the tree into k slices in dendrogram order
+slice_clusters <- unique(cl[hc$order])
+row_titles <- paste0(slice_clusters, ". ", cluster_annotation[as.character(slice_clusters)])
+
+ht <- Heatmap(
+  lfc_mat, name = "log2FC",
+  col = colorRamp2(c(-params$lfc_limit, 0, params$lfc_limit), c("#2C3E99", "white", "#E31A1C")),
+  cluster_rows = as.dendrogram(hc), row_split = params$n_clusters, row_gap = unit(1.2, "mm"),
+  row_dend_width = unit(22, "mm"), show_row_names = FALSE,
+  row_title = row_titles, row_title_side = "right", row_title_rot = 0,
+  row_title_gp = gpar(fontsize = 11,
+                      fontface = ifelse(slice_clusters %in% top_clusters, "bold", "plain")),
+  cluster_columns = FALSE, column_split = col_medium, column_gap = unit(1.5, "mm"),
+  column_title_side = "bottom", column_title_gp = gpar(fontsize = 13, fontface = "bold"),
+  column_labels = paste(sub(".*_", "", colnames(lfc_mat)), "h"), column_names_rot = 90,
+  column_names_centered = TRUE, column_names_gp = gpar(fontsize = 11),
+  left_annotation = rowAnnotation(
+    Cluster = factor(cl[rownames(lfc_mat)], levels = 1:params$n_clusters),
+    col = list(Cluster = cluster_cols), show_legend = FALSE, show_annotation_name = TRUE,
+    annotation_name_side = "bottom", annotation_name_gp = gpar(fontsize = 11, fontface = "bold")),
+  top_annotation = HeatmapAnnotation(
+    Medium = col_medium, col = list(Medium = medium_cols), show_legend = FALSE,
+    show_annotation_name = FALSE, simple_anno_size = unit(3, "mm")),
+  heatmap_legend_param = list(title = expression(log[2]*FC~vs~2~h), direction = "vertical",
+                              legend_height = unit(40, "mm"), title_gp = gpar(fontsize = 11, fontface = "bold")),
+  border = TRUE, use_raster = TRUE, raster_quality = 4
+)
+ht_draw <- draw(ht, heatmap_legend_side = "left", padding = unit(c(2, 2, 2, 28), "mm"))
+# The slice titles assume the slices follow the dendrogram order; check that they do
+stopifnot(all(vapply(seq_along(slice_clusters), function(i)
+  all(cl[rownames(lfc_mat)[row_order(ht_draw)[[i]]]] == slice_clusters[i]), logical(1))))
+```
+
+## Panel C: top genes over time
+
+```{r panel-c, fig.width = 6, fig.height = 12}
+cluster_title <- function(k, wrap = 60) {
+  sprintf("<span style='color:%s'>&#9632;</span> **Cluster %s**<br>%s",
+          cluster_cols[as.character(k)], k,
+          gsub("\n", "<br>", stringr::str_wrap(cluster_annotation[as.character(k)], wrap)))
+}
+traj <- de[medium == params$rank_medium & gene %in% top_genes$gene]
+traj <- merge(traj, top_genes[, .(gene, label, rank_lfc = log2FC)], by = "gene")
+traj[, time_f := factor(time, levels = times)]
+traj[, facet := factor(cluster_title(cluster), levels = cluster_title(top_clusters))]
+traj[, label := factor(label, levels = unique(label[order(cluster, -rank_lfc)]))]
+
+gene_shapes <- rep(c(16, 15, 17, 18, 4, 3, 8, 1, 0, 2), length.out = params$n_top_genes)
+traj[, gene_idx := match(label, unique(label)), by = cluster]
+traj[, gene_idx := (gene_idx - 1) %% params$n_top_genes + 1]
+end_labels <- traj[time == max(times)]
+grey_ramp <- grey.colors(params$n_top_genes, start = 0.05, end = 0.65)
+
+p_c <- ggplot(traj, aes(time_f, log2FC, group = gene)) +
+  annotate("rect", xmin = which(times == params$late_time) - 0.5, xmax = Inf, ymin = -Inf, ymax = Inf,
+           fill = "grey92") +
+  geom_hline(yintercept = 0, linewidth = 0.3, colour = "grey60") +
+  geom_line(aes(colour = factor(gene_idx)), linewidth = 0.6) +
+  geom_point(aes(colour = factor(gene_idx), shape = factor(gene_idx)), size = 1.8) +
+  geom_text_repel(data = end_labels, aes(label = label, colour = factor(gene_idx)),
+                  size = 3.2, fontface = "italic", direction = "y", hjust = 0,
+                  nudge_x = 0.35, xlim = c(length(times) + 0.3, NA), segment.size = 0.2,
+                  segment.colour = "grey70", min.segment.length = 0, box.padding = 0.08) +
+  scale_colour_manual(values = grey_ramp, guide = "none") +
+  scale_shape_manual(values = gene_shapes, guide = "none") +
+  scale_x_discrete(expand = expansion(add = c(0.4, 2.6))) +
+  facet_wrap(~ facet, ncol = 1, scales = "free_y") +
+  coord_cartesian(clip = "off") +
+  labs(x = "Time (h)", y = bquote(log[2]~fold~change~vs~"2 h ("*.(params$rank_medium)*")")) +
+  theme_classic(base_size = 12) +
+  theme(strip.background = element_blank(), strip.text = element_markdown(hjust = 0, size = 11, lineheight = 1.15),
+        panel.spacing.y = unit(4, "mm"))
+p_c
+```
+
+## Panel D: autophagy
+
+Autophagy genes are spread over several clusters (`r paste(sprintf("%s: C%s", params$autophagy_genes, cl[params$autophagy_genes]), collapse = ", ")`),
+so none of the top clusters in panel C is enriched for autophagy terms. They are enriched, however, among the genes
+up-regulated at each time point vs 2 h, which is shown here with the ORA of those gene sets.
+Time points without a significant term (BH-adjusted p ≥ 0.05) are shown as open grey circles.
+The gene trajectories on the right are shown for rich medium only.
+
+```{r panel-d, fig.width = 16, fig.height = 6}
+ora_time[, c("medium", "time", "direction") :=
+           tstrsplit(sub("^(\\w+) (\\d+)h vs 2h (up|down)$", "\\1|\\2|\\3", Cluster), "|", fixed = TRUE)]
+ora_time[, time := as.integer(time)]
+ora_time[, has_gene := grepl(sprintf("(^|/)%s(/|$)", params$highlight_gene), geneID)]
+auto <- ora_time[direction == "up" & ID %in% params$autophagy_terms]
+auto[, .(medium, time, Description, Count, FoldEnrichment = round(FoldEnrichment, 2),
+         p.adjust = signif(p.adjust, 2), has_gene)][order(Description, medium, time)]
+fwrite(auto[, .(medium, time, ID, Description, Count, GeneRatio, FoldEnrichment, p.adjust, has_gene)],
+       out_path("Figure_4D_autophagy_ORA.csv"))
+
+term_names <- setNames(unique(auto[, .(ID, Description)])$Description, unique(auto[, .(ID, Description)])$ID)
+stopifnot(all(params$autophagy_terms %in% names(term_names)))
+grid_d <- CJ(medium = media, time = times[-1], ID = params$autophagy_terms)
+grid_d <- merge(grid_d, auto[, .(medium, time, ID, Count, p.adjust, has_gene)],
+                by = c("medium", "time", "ID"), all.x = TRUE)
+grid_d[, `:=`(medium = factor(medium, levels = media), time_f = factor(time, levels = times[-1]),
+              term = factor(ID, levels = rev(params$autophagy_terms)))]
+term_labels <- setNames(ifelse(params$autophagy_terms == params$autophagy_highlight,
+                               sprintf("<b style='color:#B2182B'>%s</b>", term_names[params$autophagy_terms]),
+                               term_names[params$autophagy_terms]), params$autophagy_terms)
+late_x <- which(times[-1] == params$late_time)
+hl_y <- which(levels(grid_d$term) == params$autophagy_highlight)
+
+p_d1 <- ggplot(grid_d, aes(time_f, term)) +
+  geom_blank() +  # trains the x scale on all time points, in order, before the subset layers
+  annotate("rect", xmin = late_x - 0.5, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "grey92") +
+  annotate("rect", xmin = late_x - 0.5, xmax = Inf, ymin = hl_y - 0.45, ymax = hl_y + 0.45,
+           fill = "#FBE3E3", colour = "#B2182B", linewidth = 0.4) +
+  geom_point(data = grid_d[is.na(p.adjust)], shape = 1, size = 1.5, colour = "grey65") +
+  geom_point(data = grid_d[!is.na(p.adjust)], aes(size = Count, fill = -log10(p.adjust)),
+             shape = 21, colour = "grey20") +
+  scale_y_discrete(labels = term_labels) +
+  scale_fill_gradient(low = "#FDD9B5", high = "#8C2D04", name = expression(-log[10]~p[adj])) +
+  scale_size_area(max_size = 7, name = "Genes") +
+  facet_wrap(~ medium, nrow = 1) +
+  labs(x = "Time (h), up-regulated vs 2 h", y = NULL) +
+  theme_bw(base_size = 12) +
+  theme(axis.text.y = element_markdown(size = 10.5), strip.background = element_blank(),
+        strip.text = element_text(face = "bold", size = 12), panel.grid.minor = element_blank(),
+        legend.position = "right")
+
+traj_d <- de[medium == "Rich" & gene %in% params$autophagy_genes]  # minimal medium shown only in the ORA panel
+stopifnot(setequal(unique(traj_d$gene), params$autophagy_genes))
+traj_d[, `:=`(medium = factor(medium, levels = "Rich"), time_f = factor(time, levels = times),
+              is_hl = gene == params$highlight_gene,
+              filled = sig == TRUE | time == times[1])]  # 2 h is the reference, not a test
+traj_d[, label := ifelse(is_hl, sprintf("%s (Atg8)", gene), gene)]
+end_d <- traj_d[time == max(times)]
+
+p_d2 <- ggplot(traj_d, aes(time_f, log2FC, group = gene)) +
+  annotate("rect", xmin = which(times == params$late_time) - 0.5, xmax = Inf, ymin = -Inf, ymax = Inf,
+           fill = "grey92") +
+  geom_hline(yintercept = 0, linewidth = 0.3, colour = "grey60") +
+  geom_line(data = traj_d[is_hl == FALSE], colour = "grey55", linewidth = 0.8) +
+  geom_point(data = traj_d[is_hl == FALSE & filled == TRUE], colour = "grey55", size = 2.2) +
+  geom_point(data = traj_d[is_hl == FALSE & filled != TRUE], colour = "grey55", size = 2.2, shape = 1, stroke = 0.8) +
+  geom_line(data = traj_d[is_hl == TRUE], colour = "#B2182B", linewidth = 1.8) +
+  geom_point(data = traj_d[is_hl == TRUE & filled == TRUE], colour = "#B2182B", size = 3.4) +
+  geom_point(data = traj_d[is_hl == TRUE & filled != TRUE], colour = "#B2182B", size = 3.4, shape = 1, stroke = 1) +
+  geom_text_repel(data = end_d, aes(label = label, colour = is_hl, fontface = ifelse(is_hl, "bold.italic", "italic")),
+                  size = 4.2, direction = "y", hjust = 0, nudge_x = 0.35,
+                  xlim = c(length(times) + 0.3, NA), segment.size = 0.2, segment.colour = "grey70",
+                  min.segment.length = 0, box.padding = 0.08) +
+  scale_colour_manual(values = c(`FALSE` = "grey35", `TRUE` = "#B2182B"), guide = "none") +
+  scale_x_discrete(expand = expansion(add = c(0.4, 2.4))) +
+  facet_wrap(~ medium, nrow = 1) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Time (h)", y = expression(log[2]~fold~change~vs~"2 h"),
+       caption = expression(Open~points*":"~p[adj] >= 0.05)) +
+  theme_classic(base_size = 14) +
+  theme(strip.background = element_blank(), strip.text = element_text(face = "bold", size = 14),
+        plot.caption = element_text(size = 10.5, colour = "grey40"))
+
+p_d1 + p_d2 + plot_layout(widths = c(1.3, 1))
+```
+
+## Assembled figure
+
+```{r assemble, fig.width = 16, fig.height = 25}
+panel_a <- wrap_elements(full = rasterGrob(readPNG(data_path("Figure_4A_schematic.png")),
+                                           interpolate = TRUE))
+panel_b <- wrap_elements(full = grid.grabExpr(
+  draw(ht, heatmap_legend_side = "left", padding = unit(c(2, 2, 2, 28), "mm")),
+  width = 10.5, height = 13))
+
+row_bc <- (panel_b | p_c + theme(plot.margin = margin(5, 5, 5, 15))) +
+  plot_layout(widths = c(10.5, 5.5))
+row_d <- (p_d1 | p_d2) + plot_layout(widths = c(1.3, 1))
+fig4 <- (panel_a / row_bc / wrap_elements(full = row_d)) +
+  plot_layout(heights = c(5.2, 13, 5.6)) +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(size = 22, face = "bold"))
+fig4
+
+ggsave(out_path("Figure_4.pdf"), fig4, width = 16, height = 25, device = cairo_pdf)
+ggsave(out_path("Figure_4.png"), fig4, width = 16, height = 25, dpi = 300)
+```
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

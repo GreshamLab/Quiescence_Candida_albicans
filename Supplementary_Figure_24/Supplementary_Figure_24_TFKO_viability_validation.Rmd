@@ -1,0 +1,130 @@
+---
+title: "Supplementary Figure 24: Viability of 19 selected TF KOs at Day 3 and Day 7 of quiescence"
+author: "Ozan Berk Imir"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+params:
+  data_dir: "data"
+  out_dir: "output"
+  version_name: "OzanImir_20260401_v1"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+suppressPackageStartupMessages({
+  library(tidyverse)
+})
+dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
+data_path <- function(...) file.path(params$data_dir, ...)
+out_path <- function(...) file.path(params$out_dir, ...)
+version_name <- params$version_name
+```
+
+## Figure legend
+
+**Supplementary Figure 24. Quiescent viability of 19 selected transcription factor knockouts.**
+Nineteen TF KOs and the wild-type control (WT, SC5314) were grown to quiescence in rich media in
+biological triplicate. Viability was measured by SYTO9/PI flow cytometry at Day 3 and Day 7.
+Viability = Live / (Live + Dead). Bars show the mean of three replicates, error bars the SE and points
+the individual replicates. Each KO was compared with WT on the same day by Welch's t-test, with
+Benjamini-Hochberg correction within each day. \* adjusted p < 0.05.
+
+(Full legend text is in the folder README.)
+
+## Input data
+
+| File | Description |
+|---|---|
+| `data/sample_sheet_vignette_simple.csv` | FCS file name, well, day, strain (orf19 ID) and knockout (gene name) |
+| `data/Vignette-Experiment-Markers.csv` | CytoExploreR channel/marker table (SYTO9 B3-A, PI YG4-A) |
+| `data/cytek_gating_OzanImir_20260401_v1.csv` | CytoExploreR gating template (Cells, Single_cells, Live_cells, Dead_cells) |
+| `data/viability_by_replicate_OzanImir_20260401_v1.csv` | Gated Live/Dead counts per sample (120 samples) |
+| `data/viability_summary_OzanImir_20260401_v1.csv` | Original mean/SE per day and KO (used for verification only) |
+| `data/viability_vs_WT_significance_OzanImir_20260401_v1.csv` | Original t-test results (used for verification only) |
+
+The raw FCS files are not distributed. The gating code is in `Figure_6/Figure_6_TFKO_viability_validation.Rmd`.
+The quiescent Day 3 WT, NRG1, NDT80 and STP4 samples are re-gated from the FCS files in Supplementary Figure 22.
+
+## Viability and statistics
+
+```{r viability}
+viability_df <- read_csv(data_path(paste0("viability_by_replicate_", version_name, ".csv")),
+                         show_col_types = FALSE) %>%
+  mutate(knockout = ifelse(knockout == "unspecified", "orf19.3253", knockout),
+         viability = Live_cells / (Live_cells + Dead_cells),
+         day = sub("Day", "Day ", day))
+stopifnot(nrow(viability_df) == 120L)
+# Plate layout order, WT first
+ko_order <- unique(viability_df$knockout[order(readr::parse_number(viability_df$well))])
+
+star_of <- function(p) case_when(is.na(p) ~ "", p < 0.001 ~ "***", p < 0.01 ~ "**", p < 0.05 ~ "*", TRUE ~ "")
+val_sum <- viability_df %>%
+  group_by(day, knockout) %>%
+  summarise(n = n(), mean_v = mean(viability), se = sd(viability) / sqrt(n()), max_pt = max(viability),
+            p_value = if (knockout[1] == "WT") NA_real_ else
+              t.test(viability, viability_df$viability[viability_df$knockout == "WT" & viability_df$day == day[1]])$p.value,
+            .groups = "drop") %>%
+  group_by(day) %>% mutate(p_adj = p.adjust(p_value, "BH")) %>% ungroup() %>%
+  mutate(star = star_of(p_adj), knockout = factor(knockout, ko_order))
+write_csv(val_sum %>% select(day, knockout, n, mean_v, se, p_value, p_adj, star),
+          out_path("Supplementary_Figure_24_stats.csv"))
+val_sum %>% filter(p_adj < 0.05) %>% select(day, knockout, mean_v, p_value, p_adj, star) %>% knitr::kable(digits = 4)
+```
+
+Comparison with the saved results of the original analysis. The original stars are `*` for any
+adjusted p < 0.05, so stars are compared as significant / not significant:
+
+```{r verify}
+orig_summary <- read_csv(data_path(paste0("viability_summary_", version_name, ".csv")), show_col_types = FALSE)
+orig_sig <- read_csv(data_path(paste0("viability_vs_WT_significance_", version_name, ".csv")),
+                     show_col_types = FALSE, col_types = cols(signif_label = col_character()))
+cmp <- val_sum %>%
+  mutate(day = sub(" ", "", day), knockout = ifelse(knockout == "orf19.3253", "unspecified", as.character(knockout))) %>%
+  inner_join(orig_summary, by = c("day", "knockout")) %>%
+  inner_join(orig_sig, by = c("day", "knockout"))
+data.frame(check = c("rows matched", "max |mean diff|", "max |SE diff|", "max |p diff|", "max |p_adj diff|",
+                     "significance identical"),
+           value = c(nrow(cmp), max(abs(cmp$mean_v - cmp$mean_viability)), max(abs(cmp$se - cmp$se_viability)),
+                     max(abs(cmp$p_value.x - cmp$p_value.y), na.rm = TRUE),
+                     max(abs(cmp$p_adj.x - cmp$p_adj.y), na.rm = TRUE),
+                     all((cmp$star != "") == (coalesce(cmp$signif_label, "") == "*"))))
+```
+
+## Figure
+
+```{r figure, fig.width = 11, fig.height = 4}
+ink <- "#2b2b2a"; ink2 <- "#6b6a65"
+p_val <- ggplot(val_sum, aes(knockout, mean_v * 100)) +
+  geom_col(aes(fill = knockout == "WT"), width = 0.72) +
+  geom_errorbar(aes(ymin = (mean_v - se) * 100, ymax = pmin(mean_v + se, 1) * 100), width = 0.3,
+                linewidth = 0.3, colour = ink) +
+  geom_point(data = viability_df %>% mutate(knockout = factor(knockout, ko_order)), aes(y = viability * 100),
+             size = 0.7, colour = ink, alpha = 0.75, position = position_jitter(width = 0.12, height = 0, seed = 1)) +
+  geom_text(aes(y = pmax(max_pt, mean_v + se) * 100 + 1.5, label = star), size = 3.4, colour = ink, vjust = 0) +
+  facet_wrap(~day, nrow = 1) +
+  scale_fill_manual(values = c(`FALSE` = "#5b87b8", `TRUE` = "#c0392b"), guide = "none") +
+  scale_y_continuous(limits = c(0, 108), breaks = seq(0, 100, 20), expand = c(0, 0)) +
+  labs(x = NULL, y = "Viability (%)") +
+  theme_classic(base_size = 8) +
+  theme(axis.text.x = element_text(angle = 50, hjust = 1, vjust = 1, size = 9, colour = ink,
+                                   face = ifelse(ko_order == "WT", "bold", "italic")),
+        axis.text.y = element_text(size = 10, colour = ink2),
+        axis.title = element_text(size = 12, colour = ink),
+        axis.line = element_line(colour = "grey55", linewidth = 0.3),
+        axis.ticks = element_line(colour = "grey55", linewidth = 0.3),
+        strip.background = element_blank(), strip.text = element_text(size = 11, face = "bold", colour = ink))
+p_val
+
+ggsave(out_path("Supplementary_Figure_24.png"), p_val, width = 11, height = 4, dpi = 300, bg = "white")
+ggsave(out_path("Supplementary_Figure_24.pdf"), p_val, width = 11, height = 4, bg = "white")
+```
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

@@ -14,6 +14,11 @@ viability of WT/BG/NRG/NDT/STP (proliferative cells, normalized to untreated); D
 draft panels A-B, and its "B" (gene expression) is not yet in the draft. The TF KO RNA-seq volcano
 plot is the candidate for draft panel D.
 
+**Draft panels A and B have moved to the supplement.** The screen (A) is now
+[Supplementary Figure 23](../Supplementary_Figure_23/), and the Day 3 / Day 7 validation (B) is now
+[Supplementary Figure 24](../Supplementary_Figure_24/). The per-strain screen table that was missing here was regenerated
+from the FCS files. It is in `Supplementary_Figure_23/data/OzanImir_20260310_v1_viability_results.csv`.
+
 ## Panels
 | Panel (current figure) | Content | Code | Input data | Status |
 |---|---|---|---|---|
