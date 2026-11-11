@@ -41,25 +41,54 @@ df <- bind_rows(lapply(c("Isolates_AmpB_Exp.csv", "Isolates_AmpB_Qui.csv",
                          "Isolates_Micafungin_Exp.csv", "Isolates_Micafungin_Qui.csv"), read_data))
 
 conditions <- c("Untreated", "Caspofungin", "Micafungin", "AmphotericinB")
-plot_data <- df %>%
-  mutate(Viability = 100 * Live_percent / (Live_percent + Dead_percent),
-         Condition = if_else(Dose == 0, "Untreated", Treatment)) %>%
-  filter(Dose == 0 | Treatment %in% conditions) %>%
+
+# Well-level corrections (applied in code; the raw CSVs are not edited):
+#  1. Isolates_AmpB_Qui.csv: the SC5314 wells are coded against their Name (QuiCTL A09 = Dose 1,
+#     QuiTRT A10 = Dose 0). For all AmpB wells the dose is taken from the Name (CTL/CTRL = 0, TRT = 1);
+#     this changes only those two SC5314 wells.
+#  2. Untreated uses only Dose 0 wells whose Name marks them as untreated ("Blank", "CTL", "CTRL").
+#     This drops the four Isolates_Caspofungin_Exp.csv Dose 0 rows of Samples 7-10, which are
+#     drug-treated wells (B1 0.001ug, F3 10ug, C5 0.01ug, D7 0.1ug).
+df <- df %>%
+  mutate(Dose = if_else(Treatment == "AmphotericinB",
+                        if_else(grepl("-(QuiCTL|QuiCTRL|ExpCTL|ExpCTRL)-", Name), 0L, 1L),
+                        as.integer(Dose)),
+         Viability = 100 * Live_percent / (Live_percent + Dead_percent))
+
+# Untreated: each drug plate carries its own untreated well per strain and growth phase, so a strain has
+# up to three untreated wells per phase (AmpB, caspofungin, micafungin plates). They are summarised as
+# one value per strain and phase (mean of its genuine untreated wells), so every box has n = 21 and the
+# Untreated comparison can be paired by strain like the drug conditions.
+untreated_wells <- df %>% filter(Dose == 0, grepl("Blank|CTR?L", Name))
+untreated <- untreated_wells %>%
+  group_by(Sample, Growth) %>%
+  summarise(n_wells = n(), Viability = mean(Viability), .groups = "drop") %>%
+  mutate(Condition = "Untreated")
+treated <- df %>%
+  filter(Dose == 1, Treatment %in% conditions) %>%
+  transmute(Sample, Growth, n_wells = 1L, Viability, Condition = Treatment)
+
+plot_data <- bind_rows(untreated, treated) %>%
   mutate(Growth = factor(Growth, levels = c("Exponential", "Quiescent")),
          x = 2 * match(Condition, conditions) - 2 + as.integer(Growth))  # 1..8, pairs side by side
+print(count(plot_data, Condition, Growth))
+write.csv(untreated_wells %>% select(Name, Sample, Growth, Treatment, Viability) %>% arrange(Sample, Growth),
+          file.path(out_dir, "Figure_5B_untreated_wells.csv"), row.names = FALSE)
+write.csv(plot_data %>% select(Sample, Condition, Growth, n_wells, Viability) %>% arrange(Condition, Sample, Growth),
+          file.path(out_dir, "Figure_5B_plot_values.csv"), row.names = FALSE)
 
-# Paired t-tests (paired by strain) for the treated conditions
+# Paired t-tests (paired by strain, n = 21) for all four conditions
 stars <- function(p) if (p < 0.001) "***" else if (p < 0.01) "**" else if (p < 0.05) "*" else "n.s."
 tests <- plot_data %>%
-  filter(Condition != "Untreated") %>%
   select(Sample, Condition, Growth, Viability) %>%
   pivot_wider(names_from = Growth, values_from = Viability) %>%
   group_by(Condition) %>%
-  summarise(p = t.test(Exponential, Quiescent, paired = TRUE)$p.value, .groups = "drop") %>%
+  summarise(n_pairs = sum(!is.na(Exponential) & !is.na(Quiescent)),
+            p = t.test(Exponential, Quiescent, paired = TRUE)$p.value, .groups = "drop") %>%
   mutate(label = sapply(p, stars),
          x0 = 2 * match(Condition, conditions) - 1, x1 = x0 + 1,
-         y = c(AmphotericinB = 9.5, Caspofungin = 0.8, Micafungin = 0.8)[Condition])  # as in Ver8
-print(tests)
+         y = c(Untreated = 0.8, AmphotericinB = 9.5, Caspofungin = 0.8, Micafungin = 0.8)[Condition])  # drugs as in Ver8
+print(as.data.frame(tests))
 
 # Drug brackets and labels below the panel
 brackets <- data.frame(x0 = seq(1, 7, 2) - 0.4, x1 = seq(2, 8, 2) + 0.4, y = -5)

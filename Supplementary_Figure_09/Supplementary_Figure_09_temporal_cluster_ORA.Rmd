@@ -79,7 +79,10 @@ table(sample_medium, sample_time)
 
 As in the analysis, the VST values of the time-responsive genes are averaged per medium × time group and
 z-scored across all 14 groups, so rich and minimal are on the same scale. The clustering is rebuilt and
-checked against the saved assignment.
+checked against the saved assignment, whose clusters (like those in the ORA file) are numbered by the time
+of their mean peak in rich medium. The clusters are then renumbered as in Figure 4B: 1 to
+`r params$n_clusters` from top to bottom of the heatmap (dendrogram order). The table maps the saved
+numbers to the figure numbers.
 
 ```{r clusters}
 gmeans <- sapply(group_levels, function(g) rowMeans(vmat[clusters$gene, sample_group == g, drop = FALSE]))
@@ -90,6 +93,12 @@ cl <- cutree(hc, k = params$n_clusters)
 peak <- tapply(seq_along(cl), cl, function(i) which.max(colMeans(z[i, grep("^Rich", colnames(z)), drop = FALSE])))
 cl <- match(cl, order(peak)); names(cl) <- rownames(z)
 stopifnot(identical(unname(cl[clusters$gene]), clusters$cluster))
+
+# Figure 4B numbering: 1..k from top to bottom of the heatmap (names = saved number, values = figure number)
+renumber <- setNames(seq_len(params$n_clusters), unique(cl[hc$order]))
+stopifnot(identical(as.integer(names(renumber)), c(3L, 2L, 1L, 4L, 7L, 6L, 5L, 8L)))  # as in Figure 4
+cl <- setNames(unname(renumber[as.character(cl)]), names(cl))
+data.table(saved_cluster = as.integer(names(renumber)), figure_cluster = unname(renumber))
 n_genes <- table(factor(cl, levels = 1:params$n_clusters))
 n_genes
 
@@ -110,7 +119,7 @@ cluster, is shown. Each term is listed under the first cluster that selected it,
 p-value, so the terms of each cluster form a block.
 
 ```{r terms}
-ora[, cluster := as.integer(sub("^C", "", Cluster))]
+ora[, cluster := unname(renumber[sub("^C", "", Cluster)])]  # ORA file uses the saved numbers
 ora[, gene_ratio := vapply(strsplit(GeneRatio, "/", fixed = TRUE),
                            function(x) as.numeric(x[1]) / as.numeric(x[2]), numeric(1))]
 top <- ora[order(pvalue)][, head(.SD, params$show_category), by = cluster]
@@ -134,8 +143,9 @@ The cluster columns of the two panels are aligned. Cluster colours follow Figure
 
 ```{r figure, fig.width = 13, fig.height = 15}
 medium_cols <- c(Rich = "#D9934E", Minimal = "#8C6BB1")  # as Supplementary Figure 8
-cluster_cols <- setNames(c("#E7B3BC", "#8FB3D9", "#B7D98C", "#C9B3D9",
-                           "#E8794A", "#2A9D8F", "#B8B8B8", "#C0392B"), 1:params$n_clusters)  # Figure 4
+cluster_cols_saved <- setNames(c("#E7B3BC", "#8FB3D9", "#B7D98C", "#C9B3D9",
+                                 "#E8794A", "#2A9D8F", "#B8B8B8", "#C0392B"), 1:params$n_clusters)  # Figure 4
+cluster_cols <- setNames(cluster_cols_saved[names(renumber)], renumber)  # re-keyed to the figure numbers
 cluster_strip <- setNames(sprintf("<span style='color:%s'>&#9632;</span> **Cluster %d**<br>n = %s",
                                   cluster_cols, 1:params$n_clusters, format(as.integer(n_genes), big.mark = ",")),
                           1:params$n_clusters)

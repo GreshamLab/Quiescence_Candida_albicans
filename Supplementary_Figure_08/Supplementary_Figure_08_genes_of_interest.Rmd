@@ -1,5 +1,5 @@
 ---
-title: "Supplementary Figure 8: Expression of selected genes in rich and minimal medium"
+title: "Supplementary Figure 8: Expression of NRG1, STP4 and NDT80 in rich and minimal medium"
 author: "Ozan Berk Imir"
 date: "`r Sys.Date()`"
 output:
@@ -11,18 +11,19 @@ params:
   data_dir: "data"
   out_dir: "output"
   late_time: 24            # first quiescent time point (shaded)
-  # Genes of interest from the analysis (params$genes_of_interest), arranged in two rows by function
-  gene_rows: !r list("Morphogenesis regulators and hypha-specific genes" = c("EFG1", "NRG1", "TUP1", "HWP1", "ALS3"), "Carbon metabolism (gluconeogenesis, glyoxylate cycle, glucose uptake and glycolysis)" = c("ICL1", "PCK1", "FBP1", "HGT1", "TDH3"))
+  # The three transcription factors knocked out in Figure 6, in plotting order
+  genes: !r c("NRG1", "STP4", "NDT80")
+  fig_width: 9.5
+  fig_height: 3.8
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
-                      fig.width = 13, fig.height = 7.5)
+                      fig.width = 9.5, fig.height = 3.8)
 suppressPackageStartupMessages({
   library(data.table)
   library(ggplot2)
   library(ggtext)
-  library(patchwork)
 })
 dir.create(params$out_dir, recursive = TRUE, showWarnings = FALSE)
 data_path <- function(f) file.path(params$data_dir, f)
@@ -31,9 +32,9 @@ out_path <- function(...) file.path(params$out_dir, ...)
 
 ## Figure legend
 
-**Supplementary Figure 8. Expression of selected genes over the time course in rich and minimal medium.**
-DESeq2-normalized counts (+1, log~10~ scale) of genes involved in morphogenesis (top row) and in carbon
-metabolism (bottom row) in wild-type SC5314 grown in rich (YPD) or carbon-limited minimal medium. Points
+**Supplementary Figure 8. Expression of *NRG1*, *STP4* and *NDT80* over the time course in rich and minimal medium.**
+DESeq2-normalized counts (+1, log~10~ scale) of the transcription factor genes *NRG1*, *STP4* and *NDT80*
+(knocked out in Figure 6) in wild-type SC5314 grown in rich (YPD) or carbon-limited minimal medium. Points
 are biological replicates; lines join the mean of the log-scaled values at each time point. Time is on a
 log~2~ scale. The shaded area marks the quiescent phase (`r params$late_time`–72 h). Triangles are the
 additional rich 72 h libraries from a second sequencing run (HJT3JDRX7), which have low mRNA depth. The
@@ -44,7 +45,7 @@ temporal cluster of each gene (Supplementary Figure 9, Figure 4B) is given under
 The inputs in `data/` are outputs of
 `CandidaTFKO5_WT_72h/analysis/WT_Rich_vs_Minimal_timecourse_DESeq2_ORA.Rmd`
 (`new_72h_mode = "add"`, `n_clusters = 8`). This figure is the "Genes of interest" plot of that analysis,
-restyled; the genes are the analysis' `genes_of_interest`.
+restyled and restricted to the three transcription factors knocked out in Figure 6.
 
 | File | Description |
 |---|---|
@@ -69,11 +70,11 @@ samples[, .N, by = .(medium, time)][order(medium, time)]
 ```
 
 ```{r genes}
-goi <- unlist(params$gene_rows, use.names = FALSE)
+goi <- params$genes
 stopifnot(all(goi %in% rownames(nmat)))
 gene_info <- clusters[match(goi, gene), .(gene, cluster, time_Rich, time_Minimal, medium_x_time,
                                           padj_medium_x_time = signif(padj_medium_x_time, 2))]
-gene_info[, gene := goi]  # keep genes that are not time-responsive (cluster NA)
+gene_info[, gene := goi]  # keep genes without a temporal cluster (cluster NA)
 gene_info
 
 expr <- melt(data.table(gene = goi, nmat[goi, , drop = FALSE]), id.vars = "gene",
@@ -90,7 +91,7 @@ medium_cols <- c(Rich = "#D9934E", Minimal = "#8C6BB1")  # Figure 4 hues; Minima
 strip_label <- function(g) {
   i <- match(g, gene_info$gene)
   sprintf("*%s*<br><span style='font-size:9pt;color:#555555'>%s</span>", g,
-          ifelse(is.na(gene_info$cluster[i]), "not time-responsive", paste("cluster", gene_info$cluster[i])))
+          ifelse(is.na(gene_info$cluster[i]), "not clustered", paste("cluster", gene_info$cluster[i])))
 }
 
 goi_row <- function(genes) {
@@ -117,15 +118,14 @@ goi_row <- function(genes) {
           panel.spacing.x = unit(4, "mm"), legend.position = "bottom")
 }
 
-rows <- lapply(params$gene_rows, goi_row)
-fig <- wrap_plots(rows, ncol = 1) +
-  plot_layout(guides = "collect") +
-  plot_annotation(tag_levels = "A") &
-  theme(legend.position = "bottom", plot.tag = element_text(size = 18, face = "bold"))
+# single panel, no panel letter
+fig <- goi_row(goi)
 fig
 
-ggsave(out_path("Supplementary_Figure_08.pdf"), fig, width = 13, height = 7.5, device = cairo_pdf)
-ggsave(out_path("Supplementary_Figure_08.png"), fig, width = 13, height = 7.5, dpi = 300)
+ggsave(out_path("Supplementary_Figure_08.pdf"), fig, width = params$fig_width, height = params$fig_height,
+       device = cairo_pdf)
+ggsave(out_path("Supplementary_Figure_08.png"), fig, width = params$fig_width, height = params$fig_height,
+       dpi = 300)
 ```
 
 ## Session info

@@ -27,9 +27,11 @@ fcs_available <- dir.exists(params$fcs_root)
 staining. A–D) Exponential cells (untreated, rich media) of WT (SC5314) and *nrg1*Δ, *ndt80*Δ and
 *stp4*Δ. E–H) Quiescent cells (Day 3, rich media) of the same strains. Each row shows the PI and
 SYTO9 distribution functions of single cells (one line per biological replicate, n = 3) and the
-gated PI/SYTO9 2D quantification (three replicates pooled). Gate labels give the mean percentage of
-single cells in the Live_cells and Dead_cells gates. Viability (Live / (Live + Dead), mean of three
-replicates) is shown in the top-left corner.
+gated PI/SYTO9 2D quantification of each replicate separately (Replicate 1–3, framed in the
+replicate colour). Gate labels give the percentage of single cells of that replicate in the
+Live_cells and Dead_cells gates. Viability (Live / (Live + Dead)) of that replicate is shown in the
+top-left corner. The per-replicate plots show the variation between replicates and support the
+sample selection.
 
 (Full legend text is in the folder README.)
 
@@ -143,28 +145,31 @@ samples %>% mutate(viability = Live_cells / (Live_cells + Dead_cells)) %>%
 
 ## Figure
 
-```{r figure, eval = fcs_available, fig.width = 10.5, fig.height = 21}
-theme_set(theme_cowplot(font_size = 11))
+Each row shows the PI and SYTO9 distribution functions (one line per replicate) followed by one
+PI/SYTO9 2D plot per biological replicate (Replicate 1–3). The 2D plots are framed in the
+replicate colour used in the histograms. Gate labels and viability are those of that replicate.
+
+```{r figure, eval = fcs_available, fig.width = 18, fig.height = 30}
+theme_set(theme_cowplot(font_size = 12))
 strains <- c("WT", "NRG1", "NDT80", "STP4")
 rep_cols <- c(`1` = "#000000", `2` = "#0072B2", `3` = "#D55E00")
 dens_cols <- c("#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow", "#FF7F00", "red", "#7F0000")
 
-# Per-sample gate percentages (of single cells), then mean of the three replicates
+# Per-replicate gate percentages (of single cells) and viability (Live / (Live + Dead))
 gate_pct <- events %>% count(state, knockout, replicate, gate) %>%
-  group_by(state, knockout, replicate) %>% mutate(pct = 100 * n / sum(n)) %>%
-  group_by(state, knockout, gate) %>% summarise(pct = mean(pct), .groups = "drop")
+  group_by(state, knockout, replicate) %>% mutate(pct = 100 * n / sum(n)) %>% ungroup()
 viab <- samples %>% mutate(v = 100 * Live_cells / (Live_cells + Dead_cells)) %>%
-  group_by(state, knockout) %>% summarise(v = mean(v), .groups = "drop")
+  select(state, knockout, replicate, v)
 
 hist_panel <- function(df, var, xlabel) {
   df <- df[df[[var]] > 0 & is.finite(df[[var]]), ]
   ggplot(df, aes(.data[[var]], colour = factor(replicate))) +
-    geom_freqpoly(bins = 200, linewidth = 0.35) +
+    geom_freqpoly(bins = 200, linewidth = 0.4) +
     scale_x_log10(limits = c(1, 1e6), breaks = 10^c(1, 3, 5), labels = c("10", "1000", "100000")) +
     annotation_logticks(sides = "b", linewidth = 0.25) +
     scale_colour_manual(values = rep_cols, name = "Replicate") +
     labs(x = xlabel, y = "Count") +
-    theme(legend.position = "none")
+    theme(legend.position = "none", axis.text = element_text(size = 10))
 }
 
 # Axis breaks for the transformed scale, labelled in raw units
@@ -172,63 +177,77 @@ br_raw <- c(-1e2, 0, 1e2, 1e3, 1e4, 1e5)
 br_lab <- c(expression(-10^2), "0", expression(10^2), expression(10^3), expression(10^4), expression(10^5))
 lims <- c(fasinh(-400), 1)
 
-scatter_panel <- function(df, gates, st, ko) {
+# One 2D plot for one replicate; density is computed within that replicate
+scatter_panel <- function(df, gates, st, ko, r) {
+  df <- df[df$replicate == r, ]
   bx <- cut(df$PI_t, 256); by <- cut(df$SYTO9_t, 256)
   df$dens <- ave(rep(1, nrow(df)), bx, by, FUN = length)
   df <- df[order(df$dens), ]
   polys <- bind_rows(lapply(c("Live_cells", "Dead_cells"), function(g)
     tibble(gate = g, x = gates[[g]]$poly[, 1], y = gates[[g]]$poly[, 2])))
   labs_df <- polys %>% group_by(gate) %>% summarise(x = mean(range(x)), y = mean(range(y))) %>%
-    left_join(filter(gate_pct, state == st, knockout == ko), by = "gate") %>%
+    left_join(filter(gate_pct, state == st, knockout == ko, replicate == r) %>% select(gate, pct), by = "gate") %>%
     mutate(label = sprintf("%s\n%.2f %%", gate, coalesce(pct, 0)))
-  v <- viab$v[viab$state == st & viab$knockout == ko]
+  v <- viab$v[viab$state == st & viab$knockout == ko & viab$replicate == r]
   ggplot(df, aes(PI_t, SYTO9_t)) +
-    geom_point(aes(colour = dens), size = 0.05, shape = 16) +
+    geom_point(aes(colour = dens), size = 0.06, shape = 16) +
     scale_colour_gradientn(colours = dens_cols, trans = "log10", guide = "none") +
     geom_polygon(data = polys, aes(x, y, group = gate), inherit.aes = FALSE,
                  fill = NA, colour = "red", linewidth = 0.6) +
-    geom_label(data = labs_df, aes(x, y, label = label), inherit.aes = FALSE, size = 2.6,
+    geom_label(data = labs_df, aes(x, y, label = label), inherit.aes = FALSE, size = 3,
                fontface = "bold", lineheight = 0.9, fill = alpha("white", 0.6), label.size = 0,
                label.padding = unit(0.08, "lines")) +
-    annotate("text", x = lims[1] + 0.02, y = lims[2] - 0.02, hjust = 0, vjust = 1, size = 2.8,
-             label = sprintf("viability %.1f %%", v)) +
+    annotate("label", x = lims[1] + 0.015, y = lims[2] - 0.015, hjust = 0, vjust = 1, size = 3.4,
+             label = sprintf("viability %.1f %%", v), fill = alpha("white", 0.8), label.size = 0) +
     scale_x_continuous(breaks = fasinh(br_raw), labels = br_lab) +
     scale_y_continuous(breaks = fasinh(br_raw), labels = br_lab) +
     coord_cartesian(xlim = lims, ylim = lims, expand = FALSE) +
     labs(x = "PI", y = "SYTO9") +
-    theme(panel.border = element_rect(colour = "black", fill = NA, linewidth = 0.5),
-          axis.line = element_blank(), axis.text = element_text(size = 8))
+    theme(panel.border = element_rect(colour = rep_cols[[as.character(r)]], fill = NA, linewidth = 1.6),
+          axis.line = element_blank(), axis.text = element_text(size = 9))
 }
 
-strain_lab <- function(ko) if (ko == "WT") "WT" else bquote(italic(.(ko)))
+strain_lab <- function(ko) if (ko == "WT") "WT (SC5314)" else bquote(italic(.(tolower(ko))) * Delta)
+widths <- c(1, 1, 1, 1, 1)
 rows <- list(); k <- 0
 for (st in c("Exponential", "Quiescent")) {
   tmpl <- templates[[unique(samples$gating_template[samples$state == st])]]
   for (ko in strains) {
     k <- k + 1
     df <- filter(events, state == st, knockout == ko)
-    row <- plot_grid(hist_panel(df, "PI", "PI"), hist_panel(df, "SYTO9", "SYTO9"),
-                     scatter_panel(df, tmpl, st, ko),
-                     ncol = 3, rel_widths = c(1, 1, 0.9), align = "h", axis = "tb")
-    title <- ggdraw() + draw_label(strain_lab(ko), x = 0.035, hjust = 0, size = 12, fontface = "bold")
+    row <- plot_grid(plotlist = c(list(hist_panel(df, "PI", "PI"), hist_panel(df, "SYTO9", "SYTO9")),
+                                  lapply(1:3, function(r) scatter_panel(df, tmpl, st, ko, r))),
+                     nrow = 1, rel_widths = widths, align = "h", axis = "tb")
+    title <- ggdraw() + draw_label(strain_lab(ko), x = 0.025, hjust = 0, size = 15, fontface = "bold")
     rows[[k]] <- plot_grid(title, row, ncol = 1, rel_heights = c(0.12, 1),
-                           labels = LETTERS[k], label_size = 18, label_x = 0, hjust = 0)
+                           labels = LETTERS[k], label_size = 22, label_x = 0, hjust = 0)
   }
 }
 
-section <- function(txt) ggdraw() + draw_label(txt, x = 0, hjust = 0, size = 14, fontface = "bold")
+section <- function(txt) ggdraw() + draw_label(txt, x = 0, hjust = 0, size = 17, fontface = "bold")
+# Column headers: histogram columns, then one header per replicate in its histogram colour
+col_header <- function() {
+  hdr <- function(txt, col = "black") ggdraw() + draw_label(txt, size = 15, fontface = "bold", colour = col)
+  plot_grid(plotlist = c(list(hdr("PI distribution"), hdr("SYTO9 distribution")),
+                         lapply(1:3, function(r) hdr(paste("Replicate", r), rep_cols[[r]]))),
+            nrow = 1, rel_widths = widths)
+}
 legend <- get_legend(hist_panel(filter(events, knockout == "WT"), "PI", "PI") +
-                       theme(legend.position = "top", legend.justification = "left") +
-                       guides(colour = guide_legend(override.aes = list(linewidth = 1))))
+                       theme(legend.position = "top", legend.justification = "left",
+                             legend.text = element_text(size = 13), legend.title = element_text(size = 13)) +
+                       guides(colour = guide_legend(override.aes = list(linewidth = 1.2))))
 fig <- plot_grid(legend,
-                 section("Exponential (untreated, rich media)"), plot_grid(plotlist = rows[1:4], ncol = 1),
-                 section("Quiescent (Day 3, rich media)"), plot_grid(plotlist = rows[5:8], ncol = 1),
-                 ncol = 1, rel_heights = c(0.25, 0.3, 4 * 2.4, 0.3, 4 * 2.4))
+                 section("Exponential (untreated, rich media)"), col_header(), plot_grid(plotlist = rows[1:4], ncol = 1),
+                 section("Quiescent (Day 3, rich media)"), col_header(), plot_grid(plotlist = rows[5:8], ncol = 1),
+                 ncol = 1, rel_heights = c(0.3, 0.35, 0.3, 4 * 3.6, 0.35, 0.3, 4 * 3.6))
 fig
-ggsave(out_path("Supplementary_Figure_22.png"), fig, width = 10.5, height = 21, units = "in", dpi = 300, bg = "white")
+ggsave(out_path("Supplementary_Figure_22.png"), fig, width = 18, height = 30, units = "in", dpi = 300, bg = "white")
 write.csv(samples %>% mutate(viability = Live_cells / (Live_cells + Dead_cells)) %>%
             select(state, knockout, replicate, fcs_file, Single_cells, Live_cells, Dead_cells, viability),
           out_path("Supplementary_Figure_22_gate_counts.csv"), row.names = FALSE)
+write.csv(gate_pct %>% select(-n) %>% pivot_wider(names_from = gate, values_from = pct, values_fill = 0) %>%
+            left_join(viab, by = c("state", "knockout", "replicate")) %>% rename(viability_pct = v),
+          out_path("Supplementary_Figure_22_replicate_gate_percentages.csv"), row.names = FALSE)
 ```
 
 ## Session info

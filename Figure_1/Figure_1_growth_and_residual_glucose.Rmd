@@ -52,7 +52,7 @@ Processing:
   0.1% glucose condition (`C_only == 2`, samples WT1_8X_C / WT2_8X_C). Mean OD at the cycle
   closest to each of 2, 5, 8, 11, 24, 48 and 72 h; not blank-subtracted.
 * *Residual glucose*: plate background = mean of unused wells; standard curve through the origin;
-  wells at or below background or below the LOQ (15 × SD of background wells) set to 0 µM;
+  wells at or below background or below the LOQ (mean + 10 × SD of the 0 µM standard) set to 0 µM;
   well E1 (Minimal 72 h, replicate 2) excluded as a pipetting artefact; dilution factors 4000×
   (rich) and 100× (minimal); 50%-of-median per-group QC gate.
 
@@ -109,9 +109,10 @@ glc_standards <- glc_wells %>%
 glc_std_fit <- lm(Absorbance_corrected ~ 0 + Conc_uM, data = glc_standards)
 glc_slope   <- unname(coef(glc_std_fit)[["Conc_uM"]])
 
-# limit of quantification in corrected-absorbance space (15 x SD of background wells)
-glc_bg_wells <- glc_wells %>% filter(is.na(Sample_name))
-glc_loq_abs  <- 15 * sd(glc_bg_wells$Absorbance_corrected)
+# limit of quantification in corrected-absorbance space: mean + 10 x SD of the
+# 0 uM standard (assay blank), as in the original glucose_assay_analysis.Rmd
+glc_blank_corr <- glc_standards %>% filter(Conc_uM == 0) %>% pull(Absorbance_corrected)
+glc_loq_abs    <- mean(glc_blank_corr) + 10 * sd(glc_blank_corr)
 
 glucose_ts <- glc_wells %>%
   filter(Type == "Experimental") %>%

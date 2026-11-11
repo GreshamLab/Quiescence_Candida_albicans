@@ -73,24 +73,42 @@ count(df, Treatment, Growth, Dose)
 
 ## Viability per strain and condition
 
-Viability = Live% / (Live% + Dead%). Dose 0 wells from all three drug files are pooled as
-"Untreated"; Dose 1 wells keep the drug name.
+Viability = Live% / (Live% + Dead%). Two well-level corrections are applied in code (the raw CSVs are
+not edited):
+
+1. `Isolates_AmpB_Qui.csv` codes the SC5314 wells against their `Name` (QuiCTL A09 = Dose 1,
+   QuiTRT A10 = Dose 0). For all AmpB wells the dose is taken from the `Name` (CTL/CTRL = 0, TRT = 1);
+   only these two SC5314 wells change.
+2. "Untreated" uses only Dose 0 wells whose `Name` marks them as untreated (`Blank`, `CTL`, `CTRL`).
+   This drops the four `Isolates_Caspofungin_Exp.csv` Dose 0 rows of Samples 7-10, which are
+   drug-treated wells (B1 0.001ug, F3 10ug, C5 0.01ug, D7 0.1ug).
+
+Each drug plate has its own untreated well per strain and growth phase, so a strain has up to three
+untreated wells per phase (AmpB, caspofungin and micafungin plates). These are summarised as one value
+per strain and phase (the mean of its genuine untreated wells), so every box has n = 21 (one point per
+strain, including a single SC5314 point) and the Untreated comparison is paired by strain like the drugs.
 
 ```{r prepare}
-df_summary <- df %>%
-  group_by(Sample, Growth, Treatment, Dose) %>%
-  summarise(
-    Total = Live_percent + Dead_percent,
-    Live_percent = Live_percent / Total,
-    .groups = "drop"
-  )
+df <- df %>%
+  mutate(Dose = if_else(Treatment == "AmphotericinB",
+                        if_else(grepl("-(QuiCTL|QuiCTRL|ExpCTL|ExpCTRL)-", Name), 0L, 1L),
+                        as.integer(Dose)),
+         Live_percent = Live_percent / (Live_percent + Dead_percent))
 
-plot_data <- df_summary %>%
-  mutate(Condition = case_when(
-    Dose == 0 ~ "Untreated",
-    TRUE ~ Treatment
-  )) %>%
-  filter(Dose == 0 | (Dose == 1 & Treatment %in% c("Caspofungin", "Micafungin", "AmphotericinB")))
+untreated_wells <- df %>% filter(Dose == 0, grepl("Blank|CTR?L", Name))
+untreated_wells %>% filter(Sample == "SC5314") %>% select(Name, Growth, Treatment, Live_percent)
+
+untreated <- untreated_wells %>%
+  group_by(Sample, Growth) %>%
+  summarise(n_wells = n(), Live_percent = mean(Live_percent), .groups = "drop") %>%
+  mutate(Condition = "Untreated")
+count(untreated, Growth, n_wells)
+
+treated <- df %>%
+  filter(Dose == 1, Treatment %in% c("Caspofungin", "Micafungin", "AmphotericinB")) %>%
+  transmute(Sample, Growth, n_wells = 1L, Live_percent, Condition = Treatment)
+
+plot_data <- bind_rows(untreated, treated)
 
 level_order <- c(
   "Untreated Exponential", "Untreated Quiescent",
@@ -162,8 +180,7 @@ paired_tests
 write.csv(paired_tests, out_path("Figure_5_paired_tests.csv"), row.names = FALSE)
 ```
 
-For "Untreated", every strain has three Dose 0 values per growth phase (one per drug file), so
-`pivot_wider()` returns list-columns and the paired test returns `NA`.
+With one Untreated value per strain and phase, all four conditions have n = 21 pairs.
 
 ## Plot
 
@@ -187,7 +204,7 @@ p <- ggplot(plot_data, aes(x = Group_Label, y = Live_percent, fill = Growth)) +
   ) +
   labs(fill = "Growth Phase",
        title = "Drug Response: Exponential vs Quiescent",
-       subtitle = "Paired t-tests comparing growth phases (Dose 0 = Untreated, Dose 1 = Treated)")
+       subtitle = "One point per strain; Untreated = mean of the untreated wells on the three drug plates")
 p
 
 ggsave(out_path("drug_response_4pairs.png"), p, width = 10, height = 6, dpi = 300)

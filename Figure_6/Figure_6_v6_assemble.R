@@ -21,12 +21,16 @@
 #        subunit, plus RPL/RPS/RPP gene names). The DE-gene counts in each panel exclude them too.
 #   v6: panel titles removed; larger axis titles, axis text and legend; B-D x axis labelled with the contrast
 #       formula instead of "Interaction log2 fold change".
+#   Reviewer revision (displayed text only; sample IDs in the data are unchanged): KOs shown in delta notation
+#       (nrg1Δ, ndt80Δ, stp4Δ; WT stays WT); the background strain "BG" is shown as WT; log axis labels and the
+#       caption use true subscripts (log₂, −log₁₀). Rendered with ggtext markdown (plotmath italic spaced letters badly).
 #   Supplement: Day 3 / Day 7 quiescent viability of the 19 validated TF KOs vs WT on the same day
 #        (OzanImir_20260401_v1; Welch t-test vs WT, BH within day, as in Figure_6_TFKO_viability_validation.Rmd).
 # Run from this folder: Rscript Figure_6_v6_assemble.R   (R 4.6.1; GO.db, dplyr, ggplot2, ggrepel, patchwork)
+invisible(Sys.setlocale("LC_CTYPE", "C.UTF-8"))  # labels contain Unicode (Δ, −, ×)
 suppressPackageStartupMessages({
   library(GO.db); library(AnnotationDbi)
-  library(dplyr); library(ggplot2); library(ggrepel); library(patchwork)
+  library(dplyr); library(ggplot2); library(ggrepel); library(patchwork); library(ggtext)
 })
 val_csv <- "data/flow_validation/viability_by_replicate_OzanImir_20260401_v1.csv"
 exp_csv <- "data/flow_micafungin_proliferative/viability_normalized_to_untreated_OzanImir_20260809_v1.csv"
@@ -76,9 +80,10 @@ pA <- ggplot(qe_sum, aes(knockout, mean_ratio)) +
             size = 3.4, colour = ink, vjust = 0) +
   scale_fill_manual(values = c(KO = "#5b87b8", WT = "#c0392b"), guide = "none") +
   scale_y_continuous(limits = c(0, 1.1), breaks = seq(0, 1, 0.2), expand = c(0, 0)) +
+  scale_x_discrete(labels = c(WT = "**WT**", NRG1 = "*nrg1*\u0394", NDT80 = "*ndt80*\u0394", STP4 = "*stp4*\u0394")) +
   labs(x = NULL, y = "Viability ratio, quiescent (Day 3) / exponential") +
   theme_fig +
-  theme(axis.text.x = element_text(colour = ink, size = 11, face = c("bold", rep("bold.italic", 3))))
+  theme(axis.text.x = element_markdown(colour = ink, size = 11))
 
 ## ---- Supplement: 19 validated TF KOs, Day 3 / Day 7 quiescent viability vs WT (same day) ----
 val <- read.csv(val_csv) %>%
@@ -163,7 +168,9 @@ cat_levels <- c("Autophagy-related", "Biofilm formation", "Drug resistance", "Bi
 cat_cols <- setNames(c("#2a78d6", "#eb6834", "#1baf7a", "#eda100", top_col), cat_levels)
 cat_shapes <- setNames(c(23, 21, 24, 22, 21), cat_levels)
 xlim_all <- max(abs(ix$log2FC)) * 1.05
+ko_gene <- c(NRG = "nrg1", STP = "stp4", NDT = "ndt80")  # displayed KO names (delta notation); BG shown as WT
 volcano <- function(ko) {
+  g <- ko_gene[[ko]]
   d <- ix %>% filter(contrast == paste0(ko, " x time (vs BG)")) %>%
     mutate(bg = ifelse(sig, "DE", "ns"),
            category = ifelse(is.na(category) & top10, "Top 10 upregulated", category),
@@ -184,31 +191,36 @@ volcano <- function(ko) {
                     min.segment.length = 0, segment.size = 0.2, segment.colour = "grey55",
                     box.padding = 0.2, point.padding = 0.15, force = 3, max.time = 3, max.iter = 1e5, seed = 1) +
     scale_colour_manual(values = c(`FALSE` = ink, `TRUE` = top_col), guide = "none") +
-    annotate("text", x = c(-xlim_all, xlim_all), y = Inf, vjust = 1.4, hjust = c(0, 1), size = 2.3,
-             colour = ink2, label = c(sprintf("weaker in %s\n(%d genes)", ko, n_dn),
-                                      sprintf("stronger in %s\n(%d genes)", ko, n_up)), lineheight = 0.9) +
+    annotate("richtext", x = c(-xlim_all, xlim_all), y = Inf, vjust = 1, hjust = c(0, 1), size = 2.3,
+             colour = ink2, fill = NA, label.colour = NA, lineheight = 1.1,
+             label = c(sprintf("weaker in *%s*\u0394<br>(%d genes)", g, n_dn),
+                       sprintf("stronger in *%s*\u0394<br>(%d genes)", g, n_up))) +
     scale_fill_manual(values = cat_cols, drop = FALSE, name = "DE genes annotated to:") +
     scale_shape_manual(values = cat_shapes, drop = FALSE, name = "DE genes annotated to:") +
     guides(shape = "none", fill = guide_legend(override.aes = list(shape = unname(cat_shapes), size = 4.5))) +
     scale_x_continuous(limits = c(-xlim_all, xlim_all)) +
     scale_y_continuous(expand = expansion(mult = c(0.02, 0.18))) +
-    labs(x = sprintf("log2 [(%s 72h / %s 6h) / (BG 72h / BG 6h)]", ko, ko), y = "-log10 adjusted p") +
-    theme_fig + theme(legend.position = "bottom", legend.text = element_text(size = 11, colour = ink))
+    labs(x = sprintf("log<sub>2</sub> [(*%s*\u0394 72h / *%s*\u0394 6h) /<br>(WT 72h / WT 6h)]", g, g),
+         y = "\u2212log<sub>10</sub> adjusted p") +
+    theme_fig + theme(legend.position = "bottom", legend.text = element_text(size = 11, colour = ink),
+                      axis.title.x = element_markdown(size = 12, colour = ink, lineheight = 1.15),
+                      axis.title.y = element_markdown(size = 12, colour = ink))
 }
 pB <- volcano("NRG")
 pC <- volcano("STP") + guides(fill = "none"); pD <- volcano("NDT") + guides(fill = "none")
 
 n_top_cat <- sum(ix$top10 & !is.na(ix$category))
-legend_note <- paste0("Cytosolic ribosomal protein genes omitted from B-D. Bold dark-red labels: top 10 upregulated genes per KO (DE up, ranked by -log10 padj x log2FC)",
+legend_note <- paste0("Cytosolic ribosomal protein genes omitted from B-D. Bold dark-red labels: top 10 upregulated genes per KO (DE up, ranked by ",
+                      "\u2212log<sub>10</sub> padj \u00d7 log<sub>2</sub>FC)",
                       ifelse(n_top_cat == 0, "; none falls in a highlighted GO category.",
                              "; a dark-red ring marks one that also falls in a highlighted GO category."))
 fig <- (pA | pB | pC | pD) +
   plot_layout(widths = c(0.6, 1, 1, 1), guides = "collect") +
   plot_annotation(tag_levels = "A", caption = legend_note,
-                  theme = theme(plot.caption = element_text(size = 7.5, colour = ink2, hjust = 0.5))) &
+                  theme = theme(plot.caption = element_markdown(size = 7.5, colour = ink2, hjust = 0.5))) &
   theme(legend.position = "bottom", legend.title = element_text(size = 11, colour = ink))
 ggsave(file.path(out_dir, "Figure_6_v6.png"), fig, width = 16, height = 6.8, dpi = 300, bg = "white")
-ggsave(file.path(out_dir, "Figure_6_v6.pdf"), fig, width = 16, height = 6.8, bg = "white")
+ggsave(file.path(out_dir, "Figure_6_v6.pdf"), fig, width = 16, height = 6.8, bg = "white", device = cairo_pdf)
 
 write.csv(qe_sum %>% select(knockout, qui_mean, exp_mean, mean_ratio, se, p_value, p_adj, star),
           file.path(out_dir, "Figure_6_v6_A_quiescent_over_exponential.csv"), row.names = FALSE)

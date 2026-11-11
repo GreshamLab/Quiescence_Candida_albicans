@@ -8,6 +8,22 @@ Raw RNA-seq reads are at SRA [PRJNA1271226](https://www.ncbi.nlm.nih.gov/bioproj
 Raw flow cytometry (FCS) files are not distributed; the flow folders contain the gating templates,
 sample sheets and the gated summary tables that the analyses use.
 
+## Interactive RNA-seq explorer
+
+Browse the wild-type time course (YPD and carbon-limited, 2–72 h) and the transcription factor
+knockout (*ndt80Δ*, *nrg1Δ*, *stp4Δ*) RNA-seq data in the browser, with no installation:
+
+**[Open the explorer embedded in this repository's site](https://greshamlab.github.io/Quiescence_Candida_albicans/)**
+ · [open the app directly](https://shiny.bio.nyu.edu/obi203/CalbicansGeneExplorer/)
+
+| Tab | What it shows |
+|---|---|
+| Time course | Expression of the genes in any GO term across the time course, per medium |
+| Over-representation | GO terms enriched among differentially expressed genes at each time point |
+| Cluster heatmap | Time-responsive genes clustered by expression pattern, with drill-down into each cluster |
+| TF knockouts | Volcano plot per knockout and comparison, with GO/KEGG terms highlighted |
+| Quiescence vs proliferation | Strain × time interaction volcanoes behind Figure 6B–D |
+
 ## Figures
 
 | Figure | Content | Status |

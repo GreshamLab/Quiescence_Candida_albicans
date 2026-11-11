@@ -86,7 +86,7 @@ p <- ggplot(subset_data, aes(x = Dose, y = Live_Dead_ratio, color = Growth, line
   scale_y_continuous(limits = c(0, 1)) +
   scale_linetype_manual(values = c("Sample1" = "solid", "Sample17" = "dashed"),
                         labels = c("Sample1" = "p37005 (Sample1)", "Sample17" = "p57055 (Sample17)")) +
-  labs(x = "log10(Drug Concentration)(ug/mL)",
+  labs(x = expression(log[10]*"(Drug Concentration) ("*mu*"g/mL)"),
        y = "Viability") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
