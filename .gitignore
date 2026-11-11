@@ -1,6 +1,7 @@
 # Rendered reports and generated outputs
 output/
 *.html
+!docs/index.html
 *.nb.html
 
 # R / RStudio
